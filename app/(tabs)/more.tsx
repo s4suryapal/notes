@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   FileText,
   Folder,
@@ -45,6 +46,7 @@ function MenuItem({ icon, label, count, onPress, variant = 'default' }: MenuItem
 }
 
 export default function MoreScreen() {
+  const insets = useSafeAreaInsets();
   const { notes, categories } = useNotes();
 
   const counts = useMemo(() => ({
@@ -55,7 +57,7 @@ export default function MoreScreen() {
   }), [notes]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>More</Text>
       </View>
@@ -139,7 +141,7 @@ export default function MoreScreen() {
           <Text style={styles.footerText}>NotesAI v1.0.0</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

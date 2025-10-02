@@ -14,7 +14,10 @@ react {
     hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
     codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
 
-    enableBundleCompression = (findProperty('android.enableBundleCompression') ?: false).toBoolean()
+    // 📦 Bundle optimizations for smaller app size
+    enableBundleCompression = true                   // Enable compression
+    hermesFlags = ["-O", "-output-source-map"]       // Optimize Hermes bytecode
+
     // Use Expo CLI to bundle the app, this ensures the Metro config
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
@@ -96,6 +99,14 @@ android {
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        // 📦 App size optimization - NDK filters handled by splits configuration below
+
+        // 📦 Vector drawable support for smaller image assets
+        vectorDrawables {
+            useSupportLibrary = true
+            generatedDensities = []
+        }
     }
     signingConfigs {
         debug {
@@ -108,27 +119,76 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            // Disable minification and shrinking in debug builds for faster compilation
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
+            // 📦 For production builds with smaller app size, enable these:
             signingConfig signingConfigs.debug
-            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
-            shrinkResources enableShrinkResources.toBoolean()
-            minifyEnabled enableMinifyInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
-            crunchPngs enablePngCrunchInRelease.toBoolean()
+            minifyEnabled true           // Enable R8 code shrinking
+            shrinkResources true         // Enable resource shrinking
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", "proguard-memory-optimize.pro"
+            zipAlignEnabled true         // Optimize APK alignment
+
+            // Additional size optimizations
+            debuggable false             // Remove debug info
+        }
+    }
+
+    // 📦 MAJOR SIZE REDUCTION: Split APK by CPU architecture (reduces size by ~50%)
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false  // Don't generate universal APK
+            include "armeabi-v7a", "arm64-v8a"  // Only common architectures
         }
     }
     packagingOptions {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
+
+            // 📦 Pick first for duplicate native libraries
+            pickFirsts += ['**/libc++_shared.so', '**/libfbjni.so']
         }
+
+        // 📦 Exclude unnecessary files to reduce app size
+        excludes += [
+            '**/OWNERS',
+            '**/CONTRIBUTORS',
+            '**/LICENSE',
+            '**/LICENSE.txt',
+            '**/NOTICE',
+            '**/NOTICE.txt',
+            '**/CHANGELOG',
+            '**/README',
+            '**/README.md',
+            'META-INF/maven/**',
+            'META-INF/proguard/**',
+            'META-INF/*.kotlin_module',
+            'META-INF/*.version'
+        ]
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+        // 📦 Keep selective no-compress to avoid unnecessary APK bloat
+        noCompress 'pak', 'dat', 'bin'              // Only if these exist in assets
+    }
+
+    // 📦 Bundle configuration for smaller app size
+    bundle {
+        language {
+            enableSplit = true      // Split by language
+        }
+        density {
+            enableSplit = true      // Split by screen density
+        }
+        abi {
+            enableSplit = true      // Split by CPU architecture
+        }
     }
 }
 
@@ -179,4 +239,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // 🚀 Android 12+ Splash Screen API for smooth splash animations
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }

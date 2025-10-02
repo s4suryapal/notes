@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Menu, Search, Plus, FolderPlus } from 'lucide-react-native';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -7,6 +8,7 @@ import { CategoryCard } from '@/components/CategoryCard';
 import { useNotes } from '@/lib/NotesContext';
 
 export default function FoldersScreen() {
+  const insets = useSafeAreaInsets();
   const { notes, categories } = useNotes();
 
   const totalNotes = useMemo(() => {
@@ -18,7 +20,7 @@ export default function FoldersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => {}}>
@@ -60,7 +62,7 @@ export default function FoldersScreen() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -3,6 +3,12 @@ import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.animation.ObjectAnimator
+import androidx.core.animation.doOnEnd
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -13,6 +19,32 @@ import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    // 🚀 Install Android 12+ Splash Screen API FIRST (before super.onCreate)
+    // This handles the native splash screen with smooth animation
+    val splashScreen = installSplashScreen()
+
+    // Keep splash screen visible during app loading
+    var keepSplashOnScreen = true
+    splashScreen.setKeepOnScreenCondition { keepSplashOnScreen }
+
+    // 🎨 Add smooth exit animation when dismissing splash
+    splashScreen.setOnExitAnimationListener { splashScreenView ->
+      // Slide up animation for modern feel
+      val slideUp = ObjectAnimator.ofFloat(
+        splashScreenView.view,
+        View.TRANSLATION_Y,
+        0f,
+        -splashScreenView.view.height.toFloat()
+      )
+      slideUp.duration = 300L
+      slideUp.start()
+
+      // Remove splash screen after animation completes
+      slideUp.doOnEnd {
+        splashScreenView.remove()
+      }
+    }
+
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
@@ -20,7 +52,13 @@ class MainActivity : ReactActivity() {
     // @generated begin expo-splashscreen - expo prebuild (DO NOT MODIFY) sync-f3ff59a738c56c9a6119210cb55f0b613eb8b6af
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
+
     super.onCreate(null)
+
+    // 🚀 Allow splash screen to dismiss after React Native loads (500ms delay)
+    Handler(Looper.getMainLooper()).postDelayed({
+      keepSplashOnScreen = false
+    }, 500)
   }
 
   /**

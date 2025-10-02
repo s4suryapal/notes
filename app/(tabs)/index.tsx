@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Menu, Search as SearchIcon, Grid2x2 as Grid, List } from 'lucide-react-native';
-import { Colors, Spacing, Typography, Layout, BorderRadius } from '@/constants/theme';
+import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { SwipeableNoteCard, NoteCardSkeleton } from '@/components';
 import { CategoryChip } from '@/components/CategoryChip';
 import { FAB } from '@/components/FAB';
@@ -13,8 +14,9 @@ import { useToast } from '@/lib/ToastContext';
 import { ViewMode, Note } from '@/types';
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, refreshNotes } = useNotes();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -114,7 +116,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Menu size={24} color={Colors.light.text} />
@@ -136,13 +138,13 @@ export default function HomeScreen() {
             <NoteCardSkeleton key={i} />
           ))}
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Menu size={24} color={Colors.light.text} />
@@ -155,12 +157,12 @@ export default function HomeScreen() {
           actionText="Try Again"
           onActionPress={retry}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => {}}>
@@ -260,7 +262,7 @@ export default function HomeScreen() {
         onArchive={handleArchive}
         onDelete={handleDelete}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -309,7 +311,7 @@ const styles = StyleSheet.create({
   },
   notesContainer: {
     padding: Spacing.base,
-    paddingBottom: Layout.tabBarHeight + Spacing.base,
+    paddingBottom: 100, // Generous padding to account for tab bar + safe area
   },
   loadingContainer: {
     flex: 1,

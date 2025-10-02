@@ -8,4 +8,5 @@ export { EmptyState } from './EmptyState';
 export { NoteActionsSheet } from './NoteActionsSheet';
 export { Toast } from './Toast';
 export { HighlightedText } from './HighlightedText';
+export { ErrorBoundary } from './ErrorBoundary';
 export type { ToastType } from './Toast';

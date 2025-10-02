@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, SafeAreaView, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Search as SearchIcon, X, SlidersHorizontal } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
@@ -8,6 +9,7 @@ import { useNotes } from '@/lib/NotesContext';
 import { Note } from '@/types';
 
 export default function SearchScreen() {
+  const insets = useSafeAreaInsets();
   const { notes, deleteNote, toggleFavorite, toggleArchive, refreshNotes } = useNotes();
   const [inputValue, setInputValue] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -105,7 +107,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
           <ArrowLeft size={24} color={Colors.light.text} />
@@ -191,7 +193,7 @@ export default function SearchScreen() {
         onArchive={handleArchive}
         onDelete={handleDelete}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
