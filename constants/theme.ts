@@ -72,6 +72,20 @@ export const CategoryColors = [
   '#EF5350',
 ];
 
+export const NoteColors = [
+  { name: 'Default', value: null },
+  { name: 'Coral', value: '#FFCDD2' },
+  { name: 'Peach', value: '#FFCCBC' },
+  { name: 'Sand', value: '#FFE0B2' },
+  { name: 'Mint', value: '#C8E6C9' },
+  { name: 'Cyan', value: '#B2EBF2' },
+  { name: 'Blue', value: '#BBDEFB' },
+  { name: 'Periwinkle', value: '#D1C4E9' },
+  { name: 'Lavender', value: '#E1BEE7' },
+  { name: 'Pink', value: '#F8BBD0' },
+  { name: 'Gray', value: '#CFD8DC' },
+];
+
 export const Spacing = {
   xs: 4,
   sm: 8,

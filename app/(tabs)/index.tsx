@@ -1,26 +1,28 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Menu, Search as SearchIcon, Grid2x2 as Grid, List } from 'lucide-react-native';
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
-import { SwipeableNoteCard, NoteCardSkeleton } from '@/components';
+import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check } from 'lucide-react-native';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { SwipeableNoteCard, NoteCardSkeleton, FormattedText } from '@/components';
 import { CategoryChip } from '@/components/CategoryChip';
 import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
 import { NoteActionsSheet } from '@/components/NoteActionsSheet';
 import { useNotes } from '@/lib/NotesContext';
 import { useToast } from '@/lib/ToastContext';
-import { ViewMode, Note } from '@/types';
+import { ViewMode, Note, SortBy } from '@/types';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, refreshNotes } = useNotes();
+  const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, refreshNotes, updateNote } = useNotes();
   const { showSuccess } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sortBy, setSortBy] = useState<SortBy>('updated');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showSortModal, setShowSortModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Add "All" category at the beginning
@@ -44,13 +46,23 @@ export default function HomeScreen() {
       return note.category_id === selectedCategory;
     });
 
-    // Sort: favorites first, then by updated_at
+    // Sort: favorites first, then by selected sort option
     return filtered.sort((a, b) => {
+      // Favorites always come first
       if (a.is_favorite && !b.is_favorite) return -1;
       if (!a.is_favorite && b.is_favorite) return 1;
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+
+      // Then sort by selected option
+      if (sortBy === 'title') {
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      } else if (sortBy === 'created') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else {
+        // 'updated' - default
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      }
     });
-  }, [notes, selectedCategory]);
+  }, [notes, selectedCategory, sortBy]);
 
   const handleCreateNote = () => {
     router.push('/note/new');
@@ -114,6 +126,13 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const handleColorChange = async (color: string | null) => {
+    if (selectedNote) {
+      await updateNote(selectedNote.id, { color });
+      showSuccess('Note color updated');
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -174,6 +193,9 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => router.push('/search')} style={styles.iconButton}>
             <SearchIcon size={24} color={Colors.light.text} />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowSortModal(true)} style={styles.iconButton}>
+            <ArrowUpDown size={24} color={Colors.light.text} />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             style={styles.iconButton}
@@ -216,8 +238,9 @@ export default function HomeScreen() {
           actionText="Create Note"
           onActionPress={handleCreateNote}
         />
-      ) : (
+      ) : viewMode === 'list' ? (
         <FlatList
+          key="list"
           data={filteredNotes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
@@ -250,6 +273,83 @@ export default function HomeScreen() {
           initialNumToRender={10}
           updateCellsBatchingPeriod={50}
         />
+      ) : (
+        <FlatList
+          key="grid"
+          data={filteredNotes}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <View style={styles.gridItem}>
+              <TouchableOpacity
+                style={[styles.gridCard, item.color && { backgroundColor: item.color }]}
+                onPress={() => handleNotePress(item.id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.gridContent}>
+                  {item.is_favorite && (
+                    <View style={styles.gridFavorite}>
+                      <Text style={styles.gridFavoriteIcon}>⭐</Text>
+                    </View>
+                  )}
+                  {item.title ? (
+                    <Text style={styles.gridTitle} numberOfLines={3}>
+                      {item.title}
+                    </Text>
+                  ) : null}
+                  {item.checklist_items && item.checklist_items.length > 0 ? (
+                    <View style={styles.gridChecklist}>
+                      {item.checklist_items.slice(0, 3).map((checkItem) => (
+                        <View key={checkItem.id} style={styles.gridChecklistItem}>
+                          <Text style={styles.gridChecklistIcon}>
+                            {checkItem.completed ? '☑' : '☐'}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.gridChecklistText,
+                              checkItem.completed && styles.gridChecklistTextCompleted,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {checkItem.text || 'Empty'}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : item.body ? (
+                    <FormattedText
+                      text={item.body.substring(0, 150) + (item.body.length > 150 ? '...' : '')}
+                      style={styles.gridBody}
+                      numberOfLines={6}
+                    />
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleNoteMenu(item.id)}
+                  style={styles.gridMenu}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.gridMenuIcon}>⋮</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+          )}
+          contentContainerStyle={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.light.primary]}
+              tintColor={Colors.light.primary}
+            />
+          }
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          initialNumToRender={10}
+          updateCellsBatchingPeriod={50}
+        />
       )}
 
       <FAB onPress={handleCreateNote} />
@@ -261,7 +361,52 @@ export default function HomeScreen() {
         onFavorite={handleFavorite}
         onArchive={handleArchive}
         onDelete={handleDelete}
+        onColorChange={handleColorChange}
       />
+
+      <Modal
+        visible={showSortModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSortModal(false)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.sortModalOverlay} onPress={() => setShowSortModal(false)}>
+          <Pressable style={styles.sortModal} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sortModalTitle}>Sort by</Text>
+            <TouchableOpacity
+              style={styles.sortOption}
+              onPress={() => {
+                setSortBy('updated');
+                setShowSortModal(false);
+              }}
+            >
+              <Text style={styles.sortOptionText}>Last updated</Text>
+              {sortBy === 'updated' && <Check size={20} color={Colors.light.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sortOption}
+              onPress={() => {
+                setSortBy('created');
+                setShowSortModal(false);
+              }}
+            >
+              <Text style={styles.sortOptionText}>Date created</Text>
+              {sortBy === 'created' && <Check size={20} color={Colors.light.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sortOption}
+              onPress={() => {
+                setSortBy('title');
+                setShowSortModal(false);
+              }}
+            >
+              <Text style={styles.sortOptionText}>Title (A-Z)</Text>
+              {sortBy === 'title' && <Check size={20} color={Colors.light.primary} />}
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -329,5 +474,105 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xxl,
     backgroundColor: Colors.light.borderLight,
     marginRight: Spacing.sm,
+  },
+  sortModalOverlay: {
+    flex: 1,
+    backgroundColor: Colors.light.overlay,
+    justifyContent: 'flex-end',
+  },
+  sortModal: {
+    backgroundColor: Colors.light.surface,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
+    ...Shadows.xl,
+  },
+  sortModalTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.light.text,
+    marginBottom: Spacing.base,
+  },
+  sortOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  sortOptionText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.text,
+  },
+  gridContainer: {
+    padding: Spacing.sm,
+    paddingBottom: 100,
+  },
+  gridItem: {
+    flex: 1,
+    maxWidth: '50%',
+    padding: Spacing.xs,
+  },
+  gridCard: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    minHeight: 140,
+    ...Shadows.md,
+  },
+  gridContent: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  gridFavorite: {
+    alignSelf: 'flex-end',
+  },
+  gridFavoriteIcon: {
+    fontSize: 14,
+  },
+  gridTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.light.text,
+    lineHeight: Typography.fontSize.base * Typography.lineHeight.tight,
+  },
+  gridBody: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.light.textSecondary,
+    lineHeight: Typography.fontSize.sm * Typography.lineHeight.normal,
+  },
+  gridMenu: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    right: Spacing.sm,
+  },
+  gridMenuIcon: {
+    fontSize: 20,
+    color: Colors.light.textTertiary,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  gridChecklist: {
+    gap: 2,
+  },
+  gridChecklistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  gridChecklistIcon: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  gridChecklistText: {
+    flex: 1,
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.text,
+  },
+  gridChecklistTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: Colors.light.textSecondary,
   },
 });

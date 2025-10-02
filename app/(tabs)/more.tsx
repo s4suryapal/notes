@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import {
   FileText,
   Folder,
@@ -132,7 +133,7 @@ export default function MoreScreen() {
             <MenuItem
               icon={<Settings size={24} color={Colors.light.textSecondary} />}
               label="Settings"
-              onPress={() => {}}
+              onPress={() => router.push('/settings')}
             />
           </View>
         </View>

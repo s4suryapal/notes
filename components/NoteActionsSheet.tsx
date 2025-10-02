@@ -1,8 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Star, Archive, Trash2, Copy, Share, Palette, X } from 'lucide-react-native';
+import { Star, Archive, Trash2, Copy, Share, Palette, X, ChevronLeft } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { Note } from '@/types';
+import { ColorPicker } from './ColorPicker';
 
 interface NoteActionsSheetProps {
   visible: boolean;
@@ -13,7 +15,7 @@ interface NoteActionsSheetProps {
   onDelete: () => void;
   onDuplicate?: () => void;
   onShare?: () => void;
-  onChangeColor?: () => void;
+  onColorChange?: (color: string | null) => void;
 }
 
 export function NoteActionsSheet({
@@ -25,11 +27,25 @@ export function NoteActionsSheet({
   onDelete,
   onDuplicate,
   onShare,
-  onChangeColor,
+  onColorChange,
 }: NoteActionsSheetProps) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
   if (!note) return null;
 
-  const handleActionPress = (action: { label: string; onPress?: () => void }) => {
+  const handleClose = () => {
+    setShowColorPicker(false);
+    onClose();
+  };
+
+  const handleActionPress = (action: { label: string; onPress?: () => void; isColorPicker?: boolean }) => {
+    // Show color picker instead of closing for color action
+    if (action.isColorPicker) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setShowColorPicker(true);
+      return;
+    }
+
     // Different haptic feedback for different actions
     if (action.label === 'Delete') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -42,7 +58,13 @@ export function NoteActionsSheet({
     }
 
     action.onPress?.();
-    onClose();
+    handleClose();
+  };
+
+  const handleColorSelect = (color: string | null) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onColorChange?.(color);
+    setShowColorPicker(false);
   };
 
   const actions = [
@@ -84,9 +106,9 @@ export function NoteActionsSheet({
     {
       icon: Palette,
       label: 'Change color',
-      onPress: onChangeColor,
       color: Colors.light.primary,
-      show: !!onChangeColor,
+      show: !!onColorChange,
+      isColorPicker: true,
     },
   ].filter((action) => action.show);
 
@@ -95,14 +117,22 @@ export function NoteActionsSheet({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={styles.overlay} onPress={handleClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.header}>
+            {showColorPicker && (
+              <TouchableOpacity
+                onPress={() => setShowColorPicker(false)}
+                style={styles.backButton}
+              >
+                <ChevronLeft size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            )}
             <View style={styles.handle} />
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={Colors.light.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -118,21 +148,29 @@ export function NoteActionsSheet({
             )}
           </View>
 
-          <View style={styles.actions}>
-            {actions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.actionItem}
-                onPress={() => handleActionPress(action)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.iconContainer, { backgroundColor: action.color + '15' }]}>
-                  <action.icon size={24} color={action.color} />
-                </View>
-                <Text style={styles.actionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ScrollView style={styles.content}>
+            {showColorPicker ? (
+              <View style={styles.colorPickerContainer}>
+                <ColorPicker selectedColor={note.color} onColorSelect={handleColorSelect} />
+              </View>
+            ) : (
+              <View style={styles.actions}>
+                {actions.map((action, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.actionItem}
+                    onPress={() => handleActionPress(action)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: action.color + '15' }]}>
+                      <action.icon size={24} color={action.color} />
+                    </View>
+                    <Text style={styles.actionLabel}>{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -169,6 +207,19 @@ const styles = StyleSheet.create({
     right: Spacing.base,
     top: Spacing.md,
     padding: Spacing.xs,
+  },
+  backButton: {
+    position: 'absolute',
+    left: Spacing.base,
+    top: Spacing.md,
+    padding: Spacing.xs,
+  },
+  content: {
+    maxHeight: 500,
+  },
+  colorPickerContainer: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xl,
   },
   notePreview: {
     paddingHorizontal: Spacing.xl,

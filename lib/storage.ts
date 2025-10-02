@@ -393,17 +393,22 @@ export async function clearAllData(): Promise<void> {
 /**
  * Export all data as JSON (for backup)
  */
-export async function exportData(): Promise<string> {
+export async function exportAllData(): Promise<{
+  notes: Note[];
+  categories: Category[];
+  version: string;
+  exported_at: string;
+}> {
   try {
     const notes = await getAllNotes();
     const categories = await getAllCategories();
 
-    return JSON.stringify({
+    return {
       notes,
       categories,
       version: '1.0.0',
       exported_at: new Date().toISOString(),
-    }, null, 2);
+    };
   } catch (error) {
     console.error('Error exporting data:', error);
     throw error;
@@ -413,10 +418,12 @@ export async function exportData(): Promise<string> {
 /**
  * Import data from JSON (for restore)
  */
-export async function importData(jsonData: string): Promise<void> {
+export async function importAllData(data: {
+  notes: Note[];
+  categories: Category[];
+  version?: string;
+}): Promise<void> {
   try {
-    const data = JSON.parse(jsonData);
-
     // Clear existing data
     await clearAllData();
 
@@ -436,6 +443,9 @@ export async function importData(jsonData: string): Promise<void> {
 
       await saveNotesList(noteIds);
     }
+
+    // Re-initialize storage to ensure defaults exist
+    await initializeStorage();
   } catch (error) {
     console.error('Error importing data:', error);
     throw error;

@@ -1,20 +1,22 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, Search as SearchIcon, X, SlidersHorizontal } from 'lucide-react-native';
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { ArrowLeft, Search as SearchIcon, X, ArrowUpDown, Check } from 'lucide-react-native';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { SwipeableNoteCard, NoteActionsSheet, EmptyState } from '@/components';
 import { useNotes } from '@/lib/NotesContext';
-import { Note } from '@/types';
+import { Note, SortBy } from '@/types';
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
-  const { notes, deleteNote, toggleFavorite, toggleArchive, refreshNotes } = useNotes();
+  const { notes, deleteNote, toggleFavorite, toggleArchive, refreshNotes, updateNote } = useNotes();
   const [inputValue, setInputValue] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('updated');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showSortModal, setShowSortModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -26,7 +28,7 @@ export default function SearchScreen() {
 
     debounceTimeout.current = setTimeout(() => {
       setDebouncedQuery(inputValue);
-    }, 300);
+    }, 300) as any;
 
     return () => {
       if (debounceTimeout.current) {
@@ -38,14 +40,31 @@ export default function SearchScreen() {
   const searchResults = useMemo(() => {
     if (debouncedQuery.trim() === '') return [];
 
-    return notes.filter(
+    const filtered = notes.filter(
       (note) =>
         !note.is_deleted &&
         !note.is_archived &&
         (note.title.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
           note.body.toLowerCase().includes(debouncedQuery.toLowerCase()))
     );
-  }, [notes, debouncedQuery]);
+
+    // Sort results
+    return filtered.sort((a, b) => {
+      // Favorites always come first
+      if (a.is_favorite && !b.is_favorite) return -1;
+      if (!a.is_favorite && b.is_favorite) return 1;
+
+      // Then sort by selected option
+      if (sortBy === 'title') {
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      } else if (sortBy === 'created') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else {
+        // 'updated' - default
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      }
+    });
+  }, [notes, debouncedQuery, sortBy]);
 
   const handleSearch = (query: string) => {
     setInputValue(query);
@@ -106,6 +125,12 @@ export default function SearchScreen() {
     setRefreshing(false);
   };
 
+  const handleColorChange = async (color: string | null) => {
+    if (selectedNote) {
+      await updateNote(selectedNote.id, { color });
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -128,8 +153,8 @@ export default function SearchScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity onPress={() => {}} style={styles.iconButton}>
-          <SlidersHorizontal size={24} color={Colors.light.text} />
+        <TouchableOpacity onPress={() => setShowSortModal(true)} style={styles.iconButton}>
+          <ArrowUpDown size={24} color={Colors.light.text} />
         </TouchableOpacity>
       </View>
 
@@ -192,7 +217,52 @@ export default function SearchScreen() {
         onFavorite={handleFavorite}
         onArchive={handleArchive}
         onDelete={handleDelete}
+        onColorChange={handleColorChange}
       />
+
+      <Modal
+        visible={showSortModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSortModal(false)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.sortModalOverlay} onPress={() => setShowSortModal(false)}>
+          <Pressable style={styles.sortModal} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sortModalTitle}>Sort by</Text>
+            <TouchableOpacity
+              style={styles.sortOption}
+              onPress={() => {
+                setSortBy('updated');
+                setShowSortModal(false);
+              }}
+            >
+              <Text style={styles.sortOptionText}>Last updated</Text>
+              {sortBy === 'updated' && <Check size={20} color={Colors.light.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sortOption}
+              onPress={() => {
+                setSortBy('created');
+                setShowSortModal(false);
+              }}
+            >
+              <Text style={styles.sortOptionText}>Date created</Text>
+              {sortBy === 'created' && <Check size={20} color={Colors.light.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sortOption}
+              onPress={() => {
+                setSortBy('title');
+                setShowSortModal(false);
+              }}
+            >
+              <Text style={styles.sortOptionText}>Title (A-Z)</Text>
+              {sortBy === 'title' && <Check size={20} color={Colors.light.primary} />}
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -246,5 +316,37 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: Spacing.base,
     paddingBottom: Spacing.xxxl,
+  },
+  sortModalOverlay: {
+    flex: 1,
+    backgroundColor: Colors.light.overlay,
+    justifyContent: 'flex-end',
+  },
+  sortModal: {
+    backgroundColor: Colors.light.surface,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
+    ...Shadows.xl,
+  },
+  sortModalTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.light.text,
+    marginBottom: Spacing.base,
+  },
+  sortOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  sortOptionText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.text,
   },
 });

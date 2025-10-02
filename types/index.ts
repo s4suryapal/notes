@@ -1,3 +1,10 @@
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  order: number;
+}
+
 export interface Note {
   id: string;
   title: string;
@@ -7,6 +14,8 @@ export interface Note {
   is_favorite: boolean;
   is_archived: boolean;
   is_deleted: boolean;
+  checklist_items?: ChecklistItem[];
+  images?: string[]; // Array of base64 encoded images or URIs
   created_at: string;
   updated_at: string;
 }

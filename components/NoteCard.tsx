@@ -3,6 +3,7 @@ import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { MoveVertical as MoreVertical, Star } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { HighlightedText } from './HighlightedText';
+import { FormattedText } from './FormattedText';
 import { Note } from '@/types';
 
 interface NoteCardProps {
@@ -49,7 +50,26 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
             </Text>
           )
         ) : null}
-        {note.body ? (
+        {note.checklist_items && note.checklist_items.length > 0 ? (
+          <View style={styles.checklistPreview}>
+            {note.checklist_items.slice(0, 3).map((item) => (
+              <View key={item.id} style={styles.checklistItem}>
+                <Text style={styles.checklistIcon}>{item.completed ? '☑' : '☐'}</Text>
+                <Text
+                  style={[styles.checklistText, item.completed && styles.checklistTextCompleted]}
+                  numberOfLines={1}
+                >
+                  {item.text || 'Empty item'}
+                </Text>
+              </View>
+            ))}
+            {note.checklist_items.length > 3 && (
+              <Text style={styles.checklistMore}>
+                +{note.checklist_items.length - 3} more items
+              </Text>
+            )}
+          </View>
+        ) : note.body ? (
           searchQuery ? (
             <HighlightedText
               text={previewText}
@@ -58,9 +78,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
               numberOfLines={4}
             />
           ) : (
-            <Text style={styles.body} numberOfLines={4}>
-              {previewText}
-            </Text>
+            <FormattedText text={previewText} style={styles.body} numberOfLines={4} />
           )
         ) : null}
         <View style={styles.footer}>
@@ -110,5 +128,31 @@ const styles = StyleSheet.create({
   date: {
     fontSize: Typography.fontSize.xs,
     color: Colors.light.textTertiary,
+  },
+  checklistPreview: {
+    gap: Spacing.xs,
+  },
+  checklistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  checklistIcon: {
+    fontSize: 16,
+    color: Colors.light.textSecondary,
+  },
+  checklistText: {
+    flex: 1,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.light.text,
+  },
+  checklistTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: Colors.light.textSecondary,
+  },
+  checklistMore: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.textTertiary,
+    fontStyle: 'italic',
   },
 });

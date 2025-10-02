@@ -9,4 +9,7 @@ export { NoteActionsSheet } from './NoteActionsSheet';
 export { Toast } from './Toast';
 export { HighlightedText } from './HighlightedText';
 export { ErrorBoundary } from './ErrorBoundary';
+export { ColorPicker } from './ColorPicker';
+export { ChecklistItemComponent } from './ChecklistItemComponent';
+export { FormattedText } from './FormattedText';
 export type { ToastType } from './Toast';
