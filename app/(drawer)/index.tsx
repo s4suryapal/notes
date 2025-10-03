@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
-import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, Plus, X } from 'lucide-react-native';
+import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, Plus, X, Trash2, Archive, CheckSquare, FolderInput, CheckCircle2, Circle, FolderPlus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { SwipeableNoteCard, NoteCardSkeleton, FormattedText } from '@/components';
+import { NoteCard, NoteCardSkeleton, FormattedText } from '@/components';
 import { CategoryChip } from '@/components/CategoryChip';
 import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
@@ -39,8 +39,10 @@ export default function HomeScreen() {
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState(Colors.light.primary);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
 
-  // Add "All" category at the beginning and "+" at the end
+  // Add "All" category at the beginning (no "+" tab anymore)
   const allCategories = useMemo(() => [
     {
       id: 'all',
@@ -52,15 +54,6 @@ export default function HomeScreen() {
       updated_at: '',
     },
     ...categories,
-    {
-      id: 'add_new',
-      name: '+',
-      color: Colors.light.primary,
-      icon: null,
-      order_index: 9999,
-      created_at: '',
-      updated_at: '',
-    },
   ], [categories]);
 
   const [routes] = useState(
@@ -97,10 +90,6 @@ export default function HomeScreen() {
 
   const handleCreateNote = () => {
     router.push('/note/new');
-  };
-
-  const handleNotePress = (noteId: string) => {
-    router.push(`/note/${noteId}`);
   };
 
   const handleNoteMenu = (noteId: string) => {
@@ -164,41 +153,153 @@ export default function HomeScreen() {
     }
   };
 
+  const handleMoveToCategory = async (categoryId: string | null) => {
+    if (selectedNote) {
+      await updateNote(selectedNote.id, { category_id: categoryId });
+      const categoryName = categoryId ? categories.find(c => c.id === categoryId)?.name : 'None';
+      showSuccess(`Note moved to ${categoryName}`);
+    }
+  };
+
+  // Selection mode handlers
+  const handleLongPress = (noteId: string) => {
+    setSelectionMode(true);
+    setSelectedNoteIds(new Set([noteId]));
+  };
+
+  const handleNotePress = (noteId: string) => {
+    if (selectionMode) {
+      const newSelected = new Set(selectedNoteIds);
+      if (newSelected.has(noteId)) {
+        newSelected.delete(noteId);
+      } else {
+        newSelected.add(noteId);
+      }
+      setSelectedNoteIds(newSelected);
+
+      // Exit selection mode if no notes selected
+      if (newSelected.size === 0) {
+        setSelectionMode(false);
+      }
+    } else {
+      router.push(`/note/${noteId}`);
+    }
+  };
+
+  const handleSelectAll = (categoryNotes: Note[]) => {
+    const allIds = new Set(categoryNotes.map(n => n.id));
+    // Toggle: if all are selected, deselect all
+    if (selectedNoteIds.size === allIds.size) {
+      setSelectedNoteIds(new Set());
+      setSelectionMode(false);
+    } else {
+      setSelectedNoteIds(allIds);
+    }
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedNoteIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedNoteIds.size === 0) return;
+
+    Alert.alert(
+      'Delete Notes',
+      `Move ${selectedNoteIds.size} note(s) to trash?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const count = selectedNoteIds.size;
+            try {
+              // Delete all notes
+              await Promise.all(
+                Array.from(selectedNoteIds).map(id => deleteNote(id))
+              );
+              showSuccess(`${count} note(s) moved to trash`);
+            } catch (error) {
+              console.error('Error bulk deleting notes:', error);
+              Alert.alert('Error', 'Failed to delete some notes. Please try again.');
+            } finally {
+              setSelectedNoteIds(new Set());
+              setSelectionMode(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedNoteIds.size === 0) return;
+
+    const count = selectedNoteIds.size;
+    try {
+      // Archive all notes
+      await Promise.all(
+        Array.from(selectedNoteIds).map(id => toggleArchive(id))
+      );
+      showSuccess(`${count} note(s) archived`);
+    } catch (error) {
+      console.error('Error bulk archiving notes:', error);
+      Alert.alert('Error', 'Failed to archive some notes. Please try again.');
+    } finally {
+      setSelectedNoteIds(new Set());
+      setSelectionMode(false);
+    }
+  };
+
+  const [showBulkCategoryPicker, setShowBulkCategoryPicker] = useState(false);
+
+  const handleBulkMoveToCategory = (categoryId: string | null) => {
+    if (selectedNoteIds.size === 0) return;
+
+    const count = selectedNoteIds.size;
+    try {
+      // Move all notes to category
+      Promise.all(
+        Array.from(selectedNoteIds).map(id => updateNote(id, { category_id: categoryId }))
+      );
+      const categoryName = categoryId ? categories.find(c => c.id === categoryId)?.name : 'None';
+      showSuccess(`${count} note(s) moved to ${categoryName}`);
+    } catch (error) {
+      console.error('Error bulk moving notes:', error);
+      Alert.alert('Error', 'Failed to move some notes. Please try again.');
+    } finally {
+      setSelectedNoteIds(new Set());
+      setSelectionMode(false);
+      setShowBulkCategoryPicker(false);
+    }
+  };
+
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
-      Alert.alert('Error', 'Please enter a category name');
+      Alert.alert('Error', 'Please enter a folder name');
       return;
     }
 
     try {
       await createCategory(newCategoryName.trim(), newCategoryColor);
-      showSuccess('Category created');
+      showSuccess('Folder created');
       setNewCategoryName('');
       setNewCategoryColor(Colors.light.primary);
       setShowCreateCategoryModal(false);
       // Switch to the last real category (not the "+" tab)
       setIndex(categories.length);
     } catch (error) {
-      Alert.alert('Error', 'Failed to create category');
+      Alert.alert('Error', 'Failed to create folder');
     }
   };
 
   const handleTabChange = (newIndex: number) => {
-    // Check if user tapped the "+" tab (last tab)
-    if (newIndex === allCategories.length - 1) {
-      setShowCreateCategoryModal(true);
-      // Don't change the index, stay on current tab
-      return;
-    }
     setIndex(newIndex);
   };
 
   const renderNotesList = (categoryId: string) => {
-    // Don't render anything for the "add_new" tab
-    if (categoryId === 'add_new') {
-      return null;
-    }
-
     const filteredNotes = getFilteredNotes(categoryId);
 
     if (filteredNotes.length === 0) {
@@ -219,17 +320,13 @@ export default function HomeScreen() {
           data={filteredNotes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <SwipeableNoteCard
+            <NoteCard
               note={item}
               onPress={() => handleNotePress(item.id)}
+              onLongPress={() => handleLongPress(item.id)}
               onMenuPress={() => handleNoteMenu(item.id)}
-              onDelete={() => {
-                setSelectedNote(item);
-                handleDelete();
-              }}
-              onArchive={async () => {
-                await toggleArchive(item.id);
-              }}
+              selectionMode={selectionMode}
+              isSelected={selectedNoteIds.has(item.id)}
             />
           )}
           contentContainerStyle={styles.notesContainer}
@@ -262,10 +359,20 @@ export default function HomeScreen() {
           const cardContent = (
             <>
               <View style={styles.gridContent}>
-                {item.is_favorite && (
-                  <View style={styles.gridFavorite}>
-                    <Text style={styles.gridFavoriteIcon}>⭐</Text>
+                {selectionMode ? (
+                  <View style={styles.gridSelectionIndicator}>
+                    {selectedNoteIds.has(item.id) ? (
+                      <CheckCircle2 size={24} color={Colors.light.primary} fill={Colors.light.primary} />
+                    ) : (
+                      <Circle size={24} color={Colors.light.borderLight} />
+                    )}
                   </View>
+                ) : (
+                  item.is_favorite && (
+                    <View style={styles.gridFavorite}>
+                      <Text style={styles.gridFavoriteIcon}>⭐</Text>
+                    </View>
+                  )
                 )}
                 {item.title ? (
                   <Text style={styles.gridTitle} numberOfLines={3}>
@@ -299,13 +406,15 @@ export default function HomeScreen() {
                   />
                 ) : null}
               </View>
-              <TouchableOpacity
-                onPress={() => handleNoteMenu(item.id)}
-                style={styles.gridMenu}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Text style={styles.gridMenuIcon}>⋮</Text>
-              </TouchableOpacity>
+              {!selectionMode && (
+                <TouchableOpacity
+                  onPress={() => handleNoteMenu(item.id)}
+                  style={styles.gridMenu}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.gridMenuIcon}>⋮</Text>
+                </TouchableOpacity>
+              )}
               {isPattern && background?.pattern === 'grid' && (
                 <View style={styles.gridPatternOverlay} />
               )}
@@ -318,13 +427,22 @@ export default function HomeScreen() {
             </>
           );
 
+          const isSelected = selectedNoteIds.has(item.id);
+
           return (
             <View style={styles.gridItem}>
               {isGradient ? (
-                <TouchableOpacity onPress={() => handleNotePress(item.id)} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={() => handleNotePress(item.id)}
+                  onLongPress={() => handleLongPress(item.id)}
+                  activeOpacity={0.7}
+                >
                   <LinearGradient
                     colors={background.gradient as [string, string, ...string[]]}
-                    style={styles.gridCard}
+                    style={[
+                      styles.gridCard,
+                      isSelected && styles.gridCardSelected
+                    ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
@@ -335,9 +453,11 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.gridCard,
-                    (isSolid || isPattern) && { backgroundColor: background?.value || Colors.light.surface }
+                    (isSolid || isPattern) && { backgroundColor: background?.value || Colors.light.surface },
+                    isSelected && styles.gridCardSelected
                   ]}
                   onPress={() => handleNotePress(item.id)}
+                  onLongPress={() => handleLongPress(item.id)}
                   activeOpacity={0.7}
                 >
                   {cardContent}
@@ -406,7 +526,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={openDrawer}>
@@ -434,26 +554,77 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <TabView
-        navigationState={{ index, routes: allCategories.map(cat => ({ key: cat.id, title: cat.name })) }}
-        renderScene={renderScene}
-        onIndexChange={handleTabChange}
-        initialLayout={{ width: layout.width }}
-        renderTabBar={props => (
-          <TabBar
-            {...props}
-            scrollEnabled
-            indicatorStyle={styles.tabIndicator}
-            style={styles.tabBar}
-            tabStyle={styles.tab}
-            labelStyle={styles.tabLabel}
-            activeColor={Colors.light.primary}
-            inactiveColor={Colors.light.textSecondary}
-          />
-        )}
-      />
+      <View style={styles.tabViewWrapper}>
+        <TabView
+          navigationState={{ index, routes: allCategories.map(cat => ({ key: cat.id, title: cat.name })) }}
+          renderScene={renderScene}
+          onIndexChange={handleTabChange}
+          initialLayout={{ width: layout.width }}
+          renderTabBar={props => (
+            <View style={styles.tabBarContainer}>
+              <TabBar
+                {...props}
+                scrollEnabled
+                indicatorStyle={styles.tabIndicator}
+                style={styles.tabBar}
+                tabStyle={styles.tab}
+                activeColor={Colors.light.primary}
+                inactiveColor={Colors.light.textSecondary}
+                contentContainerStyle={styles.tabBarContent}
+              />
+              <View style={styles.addCategoryButton}>
+                <View style={styles.verticalDivider} />
+                <TouchableOpacity
+                  style={styles.addCategoryButtonInner}
+                  onPress={() => setShowCreateCategoryModal(true)}
+                >
+                  <FolderPlus size={20} color={Colors.light.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
+      </View>
 
-      <FAB onPress={handleCreateNote} />
+      {!selectionMode && <FAB onPress={handleCreateNote} />}
+
+      {/* Bulk Actions Bottom Bar */}
+      {selectionMode && (
+        <SafeAreaView edges={['bottom']} style={styles.bottomActionBar}>
+          <View style={styles.bottomActionBarContent}>
+            <TouchableOpacity style={styles.bottomBarButton} onPress={() => handleSelectAll(getFilteredNotes(allCategories[index].id))}>
+              <CheckSquare size={20} color={Colors.light.text} />
+              <Text style={styles.bottomBarText}>All</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bottomBarButton} onPress={() => setShowBulkCategoryPicker(true)} disabled={selectedNoteIds.size === 0}>
+              <FolderInput size={20} color={selectedNoteIds.size === 0 ? Colors.light.textTertiary : Colors.light.text} />
+              <Text style={[styles.bottomBarText, selectedNoteIds.size === 0 && styles.bottomBarTextDisabled]}>
+                Move
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bottomBarButton} onPress={handleBulkArchive} disabled={selectedNoteIds.size === 0}>
+              <Archive size={20} color={selectedNoteIds.size === 0 ? Colors.light.textTertiary : Colors.light.text} />
+              <Text style={[styles.bottomBarText, selectedNoteIds.size === 0 && styles.bottomBarTextDisabled]}>
+                Archive
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bottomBarButton} onPress={handleBulkDelete} disabled={selectedNoteIds.size === 0}>
+              <Trash2 size={20} color={selectedNoteIds.size === 0 ? Colors.light.textTertiary : Colors.light.error} />
+              <Text style={[styles.bottomBarText, selectedNoteIds.size === 0 && styles.bottomBarTextDisabled]}>
+                Delete
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bottomBarButton} onPress={handleDeselectAll}>
+              <X size={20} color={Colors.light.text} />
+              <Text style={styles.bottomBarText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      )}
 
       <NoteActionsSheet
         visible={showActionsSheet}
@@ -463,6 +634,8 @@ export default function HomeScreen() {
         onArchive={handleArchive}
         onDelete={handleDelete}
         onColorChange={handleColorChange}
+        onMoveToCategory={handleMoveToCategory}
+        categories={categories}
       />
 
       <Modal
@@ -522,9 +695,10 @@ export default function HomeScreen() {
           style={{ flex: 1 }}
         >
           <Pressable style={styles.sortModalOverlay} onPress={() => setShowCreateCategoryModal(false)}>
-            <Pressable style={styles.createCategoryModal} onPress={(e) => e.stopPropagation()}>
+            <SafeAreaView edges={['bottom']} style={styles.createCategoryModalWrapper} pointerEvents="box-none">
+              <Pressable style={styles.createCategoryModal} onPress={(e) => e.stopPropagation()}>
               <View style={styles.createCategoryHeader}>
-                <Text style={styles.sortModalTitle}>New Category</Text>
+                <Text style={styles.sortModalTitle}>New Folder</Text>
                 <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
                   <X size={24} color={Colors.light.text} />
                 </TouchableOpacity>
@@ -532,7 +706,7 @@ export default function HomeScreen() {
 
               <TextInput
                 style={styles.categoryInput}
-                placeholder="Category name"
+                placeholder="Folder name"
                 placeholderTextColor={Colors.light.textTertiary}
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
@@ -540,7 +714,12 @@ export default function HomeScreen() {
               />
 
               <Text style={styles.colorPickerLabel}>Color</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorPicker}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.colorPicker}
+                keyboardShouldPersistTaps="handled"
+              >
                 {[
                   Colors.light.primary,
                   Colors.light.secondary,
@@ -561,6 +740,7 @@ export default function HomeScreen() {
                       newCategoryColor === color && styles.colorOptionSelected,
                     ]}
                     onPress={() => setNewCategoryColor(color)}
+                    activeOpacity={0.7}
                   >
                     {newCategoryColor === color && (
                       <Check size={20} color={Colors.light.surface} />
@@ -587,11 +767,55 @@ export default function HomeScreen() {
                   <Text style={styles.categoryButtonCreateText}>Create</Text>
                 </TouchableOpacity>
               </View>
-            </Pressable>
+              </Pressable>
+            </SafeAreaView>
           </Pressable>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+
+      {/* Bulk Move to Folder Modal */}
+      <Modal
+        visible={showBulkCategoryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBulkCategoryPicker(false)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.sortModalOverlay} onPress={() => setShowBulkCategoryPicker(false)}>
+          <Pressable style={styles.sortModal} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.bulkCategoryHeader}>
+              <Text style={styles.sortModalTitle}>Move {selectedNoteIds.size} note{selectedNoteIds.size !== 1 ? 's' : ''} to folder</Text>
+              <TouchableOpacity onPress={() => setShowBulkCategoryPicker(false)}>
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.bulkCategoryList}>
+              {/* None option */}
+              <TouchableOpacity
+                style={styles.bulkCategoryOption}
+                onPress={() => handleBulkMoveToCategory(null)}
+              >
+                <View style={[styles.bulkCategoryDot, { backgroundColor: Colors.light.textTertiary }]} />
+                <Text style={styles.bulkCategoryOptionText}>None</Text>
+              </TouchableOpacity>
+
+              {/* Categories */}
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={styles.bulkCategoryOption}
+                  onPress={() => handleBulkMoveToCategory(category.id)}
+                >
+                  <View style={[styles.bulkCategoryDot, { backgroundColor: category.color }]} />
+                  <Text style={styles.bulkCategoryOptionText}>{category.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -628,10 +852,39 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: Spacing.xs,
   },
+  tabViewWrapper: {
+    flex: 1,
+  },
+  tabBarContainer: {
+    position: 'relative',
+  },
+  addCategoryButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.surface,
+    zIndex: 10,
+  },
+  verticalDivider: {
+    width: 1,
+    height: '60%',
+    backgroundColor: Colors.light.borderLight,
+    marginRight: Spacing.sm,
+  },
+  addCategoryButtonInner: {
+    paddingHorizontal: Spacing.md,
+    justifyContent: 'center',
+  },
   tabBar: {
     backgroundColor: Colors.light.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.borderLight,
+  },
+  tabBarContent: {
+    paddingRight: 60, // Space for folder+ button
   },
   tab: {
     width: 'auto',
@@ -698,6 +951,10 @@ const styles = StyleSheet.create({
     minHeight: 140,
     ...Shadows.md,
   },
+  gridCardSelected: {
+    borderWidth: 3,
+    borderColor: Colors.light.primary,
+  },
   gridContent: {
     flex: 1,
     gap: Spacing.xs,
@@ -707,6 +964,9 @@ const styles = StyleSheet.create({
   },
   gridFavoriteIcon: {
     fontSize: 14,
+  },
+  gridSelectionIndicator: {
+    alignSelf: 'flex-start',
   },
   gridTitle: {
     fontSize: Typography.fontSize.base,
@@ -769,13 +1029,16 @@ const styles = StyleSheet.create({
     opacity: 0.1,
     transform: [{ translateX: -30 }, { translateY: -30 }],
   },
+  createCategoryModalWrapper: {
+    backgroundColor: 'transparent',
+  },
   createCategoryModal: {
     backgroundColor: Colors.light.surface,
     borderTopLeftRadius: BorderRadius.xxl,
     borderTopRightRadius: BorderRadius.xxl,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
+    paddingBottom: Spacing.xl,
     ...Shadows.xl,
   },
   createCategoryHeader: {
@@ -843,5 +1106,61 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.light.surface,
+  },
+  bottomActionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.light.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    ...Shadows.lg,
+  },
+  bottomActionBarContent: {
+    flexDirection: 'row',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  bottomBarButton: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  bottomBarText: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.text,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  bottomBarTextDisabled: {
+    color: Colors.light.textTertiary,
+  },
+  bulkCategoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+  },
+  bulkCategoryList: {
+    maxHeight: 400,
+  },
+  bulkCategoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.base,
+    gap: Spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  bulkCategoryDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  bulkCategoryOptionText: {
+    flex: 1,
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.text,
   },
 });

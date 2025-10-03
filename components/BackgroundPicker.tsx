@@ -98,7 +98,7 @@ export function BackgroundPicker({ selectedBackground, onBackgroundSelect }: Bac
     if (bg.type === 'gradient' && bg.gradient) {
       return (
         <LinearGradient
-          colors={bg.gradient}
+          colors={bg.gradient as [string, string, ...string[]]}
           style={[
             styles.backgroundOption,
             selectedBackground === bg.id && styles.selectedOption,
@@ -222,7 +222,7 @@ export function BackgroundPicker({ selectedBackground, onBackgroundSelect }: Bac
         ref={flatListRef}
         data={tabOrder}
         renderItem={renderTabPage}
-        keyExtractor={(item) => item}
+        keyExtractor={(item) => String(item)}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}

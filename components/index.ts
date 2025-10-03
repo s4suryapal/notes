@@ -15,3 +15,5 @@ export type { Background, BackgroundType } from './BackgroundPicker';
 export { ChecklistItemComponent } from './ChecklistItemComponent';
 export { FormattedText } from './FormattedText';
 export type { ToastType } from './Toast';
+export { default as AudioPlayer } from './AudioPlayer';
+export { default as NativeSplashScreen } from './NativeSplashScreen';

@@ -1,14 +1,18 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { Crown } from 'lucide-react-native';
+import { Crown, ArrowLeft } from 'lucide-react-native';
 
 export default function PremiumScreen() {
-  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}> 
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Upgrade to Premium</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ArrowLeft size={24} color={Colors.light.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Premium</Text>
+        <View style={{ width: 24 }} />
       </View>
       <View style={styles.content}>
         <View style={styles.card}>
@@ -20,21 +24,27 @@ export default function PremiumScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
+  backButton: {
+    padding: Spacing.xs,
+  },
   headerTitle: {
-    fontSize: Typography.fontSize.xl,
+    fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.light.text,
   },

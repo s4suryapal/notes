@@ -21,6 +21,7 @@ interface NotesContextType {
   updateCategory: (id: string, updates: Partial<Category>) => Promise<Category | null>;
   deleteCategory: (id: string) => Promise<void>;
   reorderCategories: (orderedIds: string[]) => Promise<void>;
+  getCategoryNoteCounts: () => Promise<Record<string, number>>;
 }
 
 const NotesContext = createContext<NotesContextType | null>(null);
@@ -135,6 +136,10 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     await refreshCategories();
   }, [refreshCategories]);
 
+  const getCategoryNoteCounts = useCallback(async () => {
+    return await Storage.getCategoryNoteCounts();
+  }, []);
+
   const value: NotesContextType = {
     notes,
     categories,
@@ -154,6 +159,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     updateCategory,
     deleteCategory,
     reorderCategories,
+    getCategoryNoteCounts,
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;

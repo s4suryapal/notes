@@ -13,6 +13,7 @@ import {
   Pressable,
   Alert,
   Image,
+  Keyboard,
 } from 'react-native';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,15 +28,20 @@ import {
   X,
   Search,
   Check,
+  FolderPlus,
+  Mic,
 } from 'lucide-react-native';
 import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Audio } from 'expo-av';
+import * as Clipboard from 'expo-clipboard';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
 import { BackgroundPicker, getBackgroundById, NoteActionsSheet } from '@/components';
 import type { Background } from '@/components';
 import { Note } from '@/types';
+import AudioPlayer from '@/components/AudioPlayer';
 
 export default function NoteEditorScreen() {
   const { id } = useLocalSearchParams();
@@ -49,23 +55,33 @@ export default function NoteEditorScreen() {
     deleteNote,
     toggleFavorite,
     toggleArchive,
+    createCategory,
   } = useNotes();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [audioRecordings, setAudioRecordings] = useState<string[]>([]);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [loading, setLoading] = useState(!isNewNote);
+  const [clipboardContent, setClipboardContent] = useState<string | null>(null);
+  const [showClipboardSuggestion, setShowClipboardSuggestion] = useState(false);
 
   const currentNoteId = useRef<string | null>(isNewNote ? null : id as string);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
   const initialLoadDone = useRef(false);
   const richTextRef = useRef<RichEditor>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const titleInputRef = useRef<TextInput>(null);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [actionNoteId, setActionNoteId] = useState<string | null>(null);
+  const keyboardVisibleRef = useRef(false);
   const actionNote = useMemo<Note | null>(() => {
     if (!actionNoteId) {
       return null;
@@ -108,6 +124,28 @@ export default function NoteEditorScreen() {
     return currentBackground.value || Colors.light.primary;
   }, [currentBackground]);
 
+  // Check clipboard for new notes
+  useEffect(() => {
+    if (isNewNote && !initialLoadDone.current) {
+      const checkClipboard = async () => {
+        try {
+          const hasClipboard = await Clipboard.hasStringAsync();
+          if (hasClipboard) {
+            const text = await Clipboard.getStringAsync();
+            if (text && text.trim().length > 0 && text.trim().length < 1000) {
+              setClipboardContent(text);
+              setShowClipboardSuggestion(true);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking clipboard:', error);
+        }
+      };
+      checkClipboard();
+      initialLoadDone.current = true;
+    }
+  }, [isNewNote]);
+
   // Load existing note
   useEffect(() => {
     if (!isNewNote && id && !initialLoadDone.current) {
@@ -118,6 +156,7 @@ export default function NoteEditorScreen() {
         setSelectedCategory(note.category_id);
         setSelectedColor(note.color);
         setImages(note.images || []);
+        setAudioRecordings(note.audio_recordings || []);
         currentNoteId.current = note.id;
       }
       setLoading(false);
@@ -131,6 +170,19 @@ export default function NoteEditorScreen() {
     }
     setActionNoteId(currentNoteId.current);
     setShowActionsSheet(true);
+  }, []);
+
+  const handleAcceptClipboard = useCallback(() => {
+    if (clipboardContent) {
+      setBody(clipboardContent);
+      richTextRef.current?.setContentHTML(clipboardContent);
+    }
+    setShowClipboardSuggestion(false);
+  }, [clipboardContent]);
+
+  const handleDismissClipboard = useCallback(() => {
+    setShowClipboardSuggestion(false);
+    setClipboardContent(null);
   }, []);
 
   const handleCloseActionsSheet = useCallback(() => {
@@ -189,6 +241,29 @@ export default function NoteEditorScreen() {
     );
   }, [deleteNote, handleCloseActionsSheet, router]);
 
+  const handleCreateCategory = useCallback(async () => {
+    if (!newCategoryName.trim()) {
+      Alert.alert('Error', 'Please enter a category name');
+      return;
+    }
+
+    try {
+      // Generate a random color
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+      const newCategory = await createCategory(newCategoryName.trim(), randomColor);
+
+      // Set the newly created category as selected
+      setSelectedCategory(newCategory.id);
+      setNewCategoryName('');
+      setShowNewCategoryModal(false);
+    } catch (error) {
+      console.error('Error creating category:', error);
+      Alert.alert('Error', 'Failed to create category. Please try again.');
+    }
+  }, [newCategoryName, createCategory]);
+
   // Helper to strip HTML and check for actual content
   const hasActualContent = (html: string): boolean => {
     const stripped = html
@@ -205,23 +280,27 @@ export default function NoteEditorScreen() {
     bodyText: string,
     categoryId: string | null,
     color: string | null = null,
-    imagesToSave?: string[]
+    imagesToSave?: string[],
+    audioToSave?: string[]
   ) => {
     const imageArray = imagesToSave !== undefined ? imagesToSave : images;
+    const audioArray = audioToSave !== undefined ? audioToSave : audioRecordings;
     const hasTitleContent = titleText.trim().length > 0;
     const hasBodyContent = hasActualContent(bodyText);
     const hasImages = imageArray.length > 0;
+    const hasAudio = audioArray.length > 0;
 
     console.log('saveNote called:', {
       hasTitleContent,
       hasBodyContent,
       hasImages,
+      hasAudio,
       titleText,
       bodyLength: bodyText.length,
       currentNoteId: currentNoteId.current,
     });
 
-    if (!hasTitleContent && !hasBodyContent && !hasImages) {
+    if (!hasTitleContent && !hasBodyContent && !hasImages && !hasAudio) {
       console.log('No content to save, skipping');
       return;
     }
@@ -236,6 +315,7 @@ export default function NoteEditorScreen() {
           category_id: categoryId,
           color: color,
           images: imageArray.length > 0 ? imageArray : undefined,
+          audio_recordings: audioArray.length > 0 ? audioArray : undefined,
         });
         console.log('Note updated successfully');
       } else {
@@ -247,6 +327,7 @@ export default function NoteEditorScreen() {
           category_id: categoryId,
           color,
           images: imageArray.length > 0 ? imageArray : undefined,
+          audio_recordings: audioArray.length > 0 ? audioArray : undefined,
         });
         currentNoteId.current = newNote.id;
         console.log('New note created:', newNote.id);
@@ -254,16 +335,16 @@ export default function NoteEditorScreen() {
     } catch (error) {
       console.error('Error saving note:', error);
     }
-  }, [createNote, updateNote, images]);
+  }, [createNote, updateNote, images, audioRecordings]);
 
   // Debounced save
-  const debouncedSave = useCallback((titleText: string, bodyText: string, categoryId: string | null, color: string | null, imagesToSave?: string[]) => {
+  const debouncedSave = useCallback((titleText: string, bodyText: string, categoryId: string | null, color: string | null, imagesToSave?: string[], audioToSave?: string[]) => {
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
 
     saveTimeout.current = setTimeout(() => {
-      saveNote(titleText, bodyText, categoryId, color, imagesToSave);
+      saveNote(titleText, bodyText, categoryId, color, imagesToSave, audioToSave);
     }, 300) as any; // 300ms debounce
   }, [saveNote]);
 
@@ -298,6 +379,15 @@ export default function NoteEditorScreen() {
     saveNote(title, body, selectedCategory, color);
   };
 
+  const handleMoveToCategory = (categoryId: string | null) => {
+    setSelectedCategory(categoryId);
+    // Save immediately when category changes
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+    }
+    saveNote(title, body, categoryId, selectedColor);
+  };
+
   // Handle back button
   const handleBack = async () => {
     // Clear any pending save
@@ -311,6 +401,21 @@ export default function NoteEditorScreen() {
     router.back();
   };
 
+  // Track keyboard visibility
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', () => {
+      keyboardVisibleRef.current = true;
+    });
+    const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardVisibleRef.current = false;
+    });
+
+    return () => {
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -321,6 +426,85 @@ export default function NoteEditorScreen() {
   }, []);
 
 
+
+  // Audio recording handlers
+  const startRecording = async () => {
+    try {
+      // Request permissions
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow microphone access to record audio.');
+        return;
+      }
+
+      // Set audio mode
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      // Create and start recording
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(newRecording);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (!recording) return;
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+
+      if (uri) {
+        const newRecordings = [...audioRecordings, uri];
+        setAudioRecordings(newRecordings);
+        debouncedSave(title, body, selectedCategory, selectedColor, images, newRecordings);
+      }
+
+      setRecording(null);
+      setShowAudioRecorder(false);
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      Alert.alert('Error', 'Failed to save recording. Please try again.');
+    }
+  };
+
+  const cancelRecording = async () => {
+    try {
+      if (recording) {
+        await recording.stopAndUnloadAsync();
+        setRecording(null);
+      }
+    } catch (error) {
+      console.error('Error canceling recording:', error);
+    }
+    setShowAudioRecorder(false);
+  };
+
+  const handleDeleteAudio = (index: number) => {
+    Alert.alert(
+      'Delete Recording',
+      'Are you sure you want to delete this recording?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const newRecordings = audioRecordings.filter((_, i) => i !== index);
+            setAudioRecordings(newRecordings);
+            debouncedSave(title, body, selectedCategory, selectedColor, images, newRecordings);
+          },
+        },
+      ]
+    );
+  };
 
   // Image handling
   const handleCameraPress = async () => {
@@ -465,7 +649,7 @@ export default function NoteEditorScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -494,24 +678,55 @@ export default function NoteEditorScreen() {
           <Text style={styles.timestamp}>
             {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
           </Text>
-          {categories.length > 0 && (
-            <TouchableOpacity
-              style={styles.categoryDropdown}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-            >
-              <Text style={styles.categoryDropdownText}>
-                {selectedCategoryData?.name || 'All'}
-              </Text>
-              <ChevronDown size={16} color={Colors.light.text} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.categoryDropdown}
+            onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+          >
+            <Text style={styles.categoryDropdownText}>
+              {selectedCategoryData?.name || 'All'}
+            </Text>
+            <ChevronDown size={16} color={Colors.light.text} />
+          </TouchableOpacity>
         </View>
       </View>
 
+      {/* Clipboard Suggestion Banner */}
+      {showClipboardSuggestion && clipboardContent && (
+        <View style={styles.clipboardBanner}>
+          <Text style={styles.clipboardText} numberOfLines={1}>
+            Paste from clipboard: "{clipboardContent.substring(0, 50)}{clipboardContent.length > 50 ? '...' : ''}"
+          </Text>
+          <View style={styles.clipboardActions}>
+            <TouchableOpacity onPress={handleDismissClipboard} style={styles.clipboardButton}>
+              <X size={18} color={Colors.light.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleAcceptClipboard} style={[styles.clipboardButton, styles.clipboardButtonAccept]}>
+              <Check size={18} color={Colors.light.surface} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Category Picker Modal */}
-      {categories.length > 0 && showCategoryPicker && (
-        <Pressable style={styles.categoryModalOverlay} onPress={() => setShowCategoryPicker(false)}>
-          <View style={styles.categoryModal}>
+      {showCategoryPicker && (
+        <Pressable style={styles.categoryModalFullOverlay} onPress={() => setShowCategoryPicker(false)}>
+          <View style={styles.categoryModalPositioner}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.categoryModal}>
+            {/* Add New Category Option */}
+            <TouchableOpacity
+              style={styles.categoryModalAddOption}
+              onPress={() => {
+                setShowCategoryPicker(false);
+                setShowNewCategoryModal(true);
+              }}
+            >
+              <FolderPlus size={18} color={Colors.light.primary} />
+              <Text style={styles.categoryModalAddText}>Add</Text>
+            </TouchableOpacity>
+
+            <View style={styles.categoryModalDivider} />
+
             <TouchableOpacity
               style={[
                 styles.categoryModalOption,
@@ -533,6 +748,8 @@ export default function NoteEditorScreen() {
                 <Text style={styles.categoryModalOptionText}>{category.name}</Text>
               </TouchableOpacity>
             ))}
+              </View>
+            </Pressable>
           </View>
         </Pressable>
       )}
@@ -540,6 +757,7 @@ export default function NoteEditorScreen() {
       {/* Main Content with Background */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={{ flex: 1 }}
       >
         {renderBackgroundWrapper(
@@ -550,6 +768,7 @@ export default function NoteEditorScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <TextInput
+              ref={titleInputRef}
               style={styles.titleInput}
               placeholder="Title"
               placeholderTextColor={Colors.light.textTertiary}
@@ -577,10 +796,14 @@ export default function NoteEditorScreen() {
                   line-height: ${Typography.fontSize.md * Typography.lineHeight.normal}px;
                   padding: 0;
                   min-height: 200px;
+                  -webkit-user-select: text;
+                  user-select: text;
+                  -webkit-touch-callout: default;
                 `,
               }}
               useContainer={true}
               initialFocus={false}
+              pasteAsPlainText={false}
             />
 
             {/* Images Display */}
@@ -605,40 +828,58 @@ export default function NoteEditorScreen() {
                 </ScrollView>
               </View>
             )}
+
+            {/* Audio Recordings Display */}
+            {audioRecordings.length > 0 && (
+              <View style={styles.audioContainer}>
+                {audioRecordings.map((audioUri, index) => (
+                  <AudioPlayer
+                    key={index}
+                    uri={audioUri}
+                    index={index}
+                    onDelete={() => handleDeleteAudio(index)}
+                  />
+                ))}
+              </View>
+            )}
           </ScrollView>
         )}
 
         {/* RichToolbar - Moves with keyboard */}
-        <RichToolbar
-          editor={richTextRef}
-          actions={[
-            actions.setBold,
-            actions.setItalic,
-            actions.setUnderline,
-            actions.setStrikethrough,
-            actions.insertBulletsList,
-            actions.insertOrderedList,
-            'camera',
-            'gallery',
-            'palette',
-            actions.keyboard,
-            actions.removeFormat,
-            actions.undo,
-            actions.redo,
-          ]}
-          iconMap={{
-            camera: () => <Camera size={20} color={Colors.light.text} />,
-            gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
-            palette: () => <Palette size={20} color={paletteIconColor} />,
-          }}
-          camera={handleCameraPress}
-          gallery={handleImagePickerPress}
-          palette={() => setShowColorPicker(true)}
-          style={styles.richToolbar}
-          selectedIconTint={Colors.light.primary}
-          iconTint={Colors.light.text}
-          disabledIconTint={Colors.light.textTertiary}
-        />
+        <View style={styles.toolbarContainer}>
+          <RichToolbar
+            editor={richTextRef}
+            actions={[
+              actions.setBold,
+              actions.setItalic,
+              actions.setUnderline,
+              actions.insertBulletsList,
+              actions.insertOrderedList,
+              'camera',
+              'gallery',
+              'microphone',
+              'palette',
+              actions.keyboard,
+              actions.removeFormat,
+              actions.undo,
+              actions.redo,
+            ]}
+            iconMap={{
+              camera: () => <Camera size={20} color={Colors.light.text} />,
+              gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
+              microphone: () => <Mic size={20} color={Colors.light.text} />,
+              palette: () => <Palette size={20} color={paletteIconColor} />,
+            }}
+            camera={handleCameraPress}
+            gallery={handleImagePickerPress}
+            microphone={() => setShowAudioRecorder(true)}
+            palette={() => setShowColorPicker(true)}
+            style={styles.richToolbar}
+            selectedIconTint={Colors.light.primary}
+            iconTint={Colors.light.text}
+            disabledIconTint={Colors.light.textTertiary}
+          />
+        </View>
       </KeyboardAvoidingView>
 
       {/* Background Picker Modal */}
@@ -671,7 +912,112 @@ export default function NoteEditorScreen() {
         onArchive={handleArchiveAction}
         onDelete={handleDeleteAction}
         onColorChange={handleColorChange}
+        onMoveToCategory={handleMoveToCategory}
+        categories={categories}
       />
+
+      {/* New Category Modal */}
+      <Modal
+        visible={showNewCategoryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNewCategoryModal(false)}
+      >
+        <Pressable
+          style={styles.newCategoryOverlay}
+          onPress={() => {
+            setShowNewCategoryModal(false);
+            setNewCategoryName('');
+          }}
+        >
+          <Pressable style={styles.newCategoryModal} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.newCategoryHeader}>
+              <Text style={styles.newCategoryTitle}>New Category</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowNewCategoryModal(false);
+                  setNewCategoryName('');
+                }}
+              >
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.newCategoryInput}
+              placeholder="Category name"
+              placeholderTextColor={Colors.light.textTertiary}
+              value={newCategoryName}
+              onChangeText={setNewCategoryName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleCreateCategory}
+            />
+
+            <View style={styles.newCategoryActions}>
+              <TouchableOpacity
+                style={styles.newCategoryCancelButton}
+                onPress={() => {
+                  setShowNewCategoryModal(false);
+                  setNewCategoryName('');
+                }}
+              >
+                <Text style={styles.newCategoryCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newCategoryCreateButton}
+                onPress={handleCreateCategory}
+              >
+                <Text style={styles.newCategoryCreateText}>Create</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Audio Recording Modal */}
+      <Modal
+        visible={showAudioRecorder}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelRecording}
+      >
+        <View style={styles.audioRecorderOverlay}>
+          <View style={styles.audioRecorderModal}>
+            <View style={styles.audioRecorderHeader}>
+              <Text style={styles.audioRecorderTitle}>
+                {recording ? 'Recording...' : 'Record Audio'}
+              </Text>
+              <TouchableOpacity onPress={cancelRecording}>
+                <X size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.audioRecorderContent}>
+              {recording && (
+                <View style={styles.recordingIndicator}>
+                  <View style={styles.recordingDot} />
+                  <Text style={styles.recordingText}>Recording in progress...</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
+                  recording && styles.recordButtonActive,
+                ]}
+                onPress={recording ? stopRecording : startRecording}
+              >
+                <Mic size={32} color={Colors.light.surface} />
+              </TouchableOpacity>
+
+              <Text style={styles.recordHint}>
+                {recording ? 'Tap to stop recording' : 'Tap to start recording'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -751,11 +1097,46 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontWeight: Typography.fontWeight.medium,
   },
-  categoryModalOverlay: {
+  clipboardBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.light.primaryLight,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  clipboardText: {
+    flex: 1,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.light.text,
+    marginRight: Spacing.sm,
+  },
+  clipboardActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  clipboardButton: {
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.round,
+    backgroundColor: Colors.light.surface,
+  },
+  clipboardButtonAccept: {
+    backgroundColor: Colors.light.primary,
+  },
+  categoryModalFullOverlay: {
     position: 'absolute',
-    top: 80,
-    right: Spacing.base,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 1000,
+  },
+  categoryModalPositioner: {
+    position: 'absolute',
+    top: 100,
+    right: Spacing.base,
   },
   categoryModal: {
     backgroundColor: Colors.light.surface,
@@ -774,6 +1155,85 @@ const styles = StyleSheet.create({
   categoryModalOptionText: {
     fontSize: Typography.fontSize.base,
     color: Colors.light.text,
+  },
+  categoryModalAddOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  categoryModalAddText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.primary,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  categoryModalDivider: {
+    height: 1,
+    backgroundColor: Colors.light.borderLight,
+    marginVertical: Spacing.xs,
+  },
+  newCategoryOverlay: {
+    flex: 1,
+    backgroundColor: Colors.light.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  newCategoryModal: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    ...Shadows.xl,
+  },
+  newCategoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  newCategoryTitle: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.light.text,
+  },
+  newCategoryInput: {
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.text,
+    marginBottom: Spacing.lg,
+  },
+  newCategoryActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
+  },
+  newCategoryCancelButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  newCategoryCancelText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.textSecondary,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  newCategoryCreateButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.light.primary,
+  },
+  newCategoryCreateText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.surface,
+    fontWeight: Typography.fontWeight.semibold,
   },
   content: {
     flex: 1,
@@ -798,6 +1258,9 @@ const styles = StyleSheet.create({
   richEditor: {
     minHeight: 200,
     flex: 1,
+  },
+  toolbarContainer: {
+    backgroundColor: Colors.light.surface,
   },
   richToolbar: {
     backgroundColor: Colors.light.surface,
@@ -880,5 +1343,73 @@ const styles = StyleSheet.create({
     fontSize: 120,
     opacity: 0.1,
     transform: [{ translateX: -60 }, { translateY: -60 }],
+  },
+  audioContainer: {
+    marginTop: Spacing.base,
+    marginBottom: Spacing.base,
+  },
+  audioRecorderOverlay: {
+    flex: 1,
+    backgroundColor: Colors.light.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  audioRecorderModal: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    ...Shadows.xl,
+  },
+  audioRecorderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  audioRecorderTitle: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.light.text,
+  },
+  audioRecorderContent: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+  },
+  recordingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  recordingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.light.error,
+  },
+  recordingText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.error,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  recordButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.light.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    ...Shadows.lg,
+  },
+  recordButtonActive: {
+    backgroundColor: Colors.light.error,
+  },
+  recordHint: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.light.textSecondary,
   },
 });

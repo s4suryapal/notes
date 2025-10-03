@@ -10,19 +10,25 @@ import { Note } from '@/types';
 interface SwipeableNoteCardProps {
   note: Note;
   onPress: () => void;
+  onLongPress?: () => void;
   onMenuPress: () => void;
   onDelete: () => void;
   onArchive: () => void;
   searchQuery?: string;
+  selectionMode?: boolean;
+  isSelected?: boolean;
 }
 
 export const SwipeableNoteCard = React.memo(function SwipeableNoteCard({
   note,
   onPress,
+  onLongPress,
   onMenuPress,
   onDelete,
   onArchive,
   searchQuery,
+  selectionMode = false,
+  isSelected = false,
 }: SwipeableNoteCardProps) {
   const swipeableRef = useRef<Swipeable>(null);
 
@@ -85,16 +91,25 @@ export const SwipeableNoteCard = React.memo(function SwipeableNoteCard({
   return (
     <Swipeable
       ref={swipeableRef}
-      renderLeftActions={renderLeftActions}
-      renderRightActions={renderRightActions}
+      renderLeftActions={selectionMode ? undefined : renderLeftActions}
+      renderRightActions={selectionMode ? undefined : renderRightActions}
       onSwipeableLeftOpen={handleSwipeLeft}
       onSwipeableRightOpen={handleSwipeRight}
       overshootLeft={false}
       overshootRight={false}
       leftThreshold={80}
       rightThreshold={80}
+      enabled={!selectionMode}
     >
-      <NoteCard note={note} onPress={onPress} onMenuPress={onMenuPress} searchQuery={searchQuery} />
+      <NoteCard
+        note={note}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onMenuPress={onMenuPress}
+        searchQuery={searchQuery}
+        selectionMode={selectionMode}
+        isSelected={isSelected}
+      />
     </Swipeable>
   );
 });

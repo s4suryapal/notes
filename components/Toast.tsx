@@ -155,7 +155,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     borderLeftWidth: 4,
     zIndex: 9999,
-    elevation: 9999,
     ...Shadows.lg,
   },
   content: {

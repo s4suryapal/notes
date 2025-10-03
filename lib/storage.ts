@@ -386,16 +386,39 @@ export async function deleteCategory(id: string): Promise<void> {
 
     await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(filtered));
 
-    // Update all notes in this category to null
+    // Delete all notes in this category (soft delete - move to trash)
     const notes = await getAllNotes();
     for (const note of notes) {
       if (note.category_id === id) {
-        await updateNote(note.id, { category_id: null });
+        await deleteNote(note.id);
       }
     }
   } catch (error) {
     console.error('Error deleting category:', error);
     throw error;
+  }
+}
+
+/**
+ * Get note counts per category
+ */
+export async function getCategoryNoteCounts(): Promise<Record<string, number>> {
+  try {
+    const notes = await getAllNotes();
+    const counts: Record<string, number> = {};
+
+    // Count notes that are not deleted or archived
+    notes.forEach((note) => {
+      if (!note.is_deleted && !note.is_archived) {
+        const categoryId = note.category_id || 'none';
+        counts[categoryId] = (counts[categoryId] || 0) + 1;
+      }
+    });
+
+    return counts;
+  } catch (error) {
+    console.error('Error getting category note counts:', error);
+    return {};
   }
 }
 

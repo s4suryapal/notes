@@ -16,6 +16,7 @@ export interface Note {
   is_deleted: boolean;
   checklist_items?: ChecklistItem[];
   images?: string[]; // Array of base64 encoded images or URIs
+  audio_recordings?: string[]; // Array of audio file URIs
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ export interface CreateNoteInput {
   color?: string | null;
   checklist_items?: ChecklistItem[];
   images?: string[];
+  audio_recordings?: string[];
 }
 
 export interface Category {

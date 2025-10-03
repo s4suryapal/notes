@@ -1,0 +1,154 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Audio } from 'expo-av';
+import { Play, Pause, Trash2 } from 'lucide-react-native';
+import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+
+interface AudioPlayerProps {
+  uri: string;
+  onDelete: () => void;
+  index: number;
+}
+
+export default function AudioPlayer({ uri, onDelete, index }: AudioPlayerProps) {
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState<number>(0);
+  const [position, setPosition] = useState<number>(0);
+
+  useEffect(() => {
+    loadSound();
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [uri]);
+
+  const loadSound = async () => {
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: false },
+        onPlaybackStatusUpdate
+      );
+      setSound(newSound);
+    } catch (error) {
+      console.error('Error loading sound:', error);
+    }
+  };
+
+  const onPlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded) {
+      setIsPlaying(status.isPlaying);
+      setDuration(status.durationMillis || 0);
+      setPosition(status.positionMillis || 0);
+    }
+  };
+
+  const handlePlayPause = async () => {
+    if (!sound) return;
+
+    if (isPlaying) {
+      await sound.pauseAsync();
+    } else {
+      await sound.playAsync();
+    }
+  };
+
+  const formatTime = (millis: number) => {
+    const seconds = millis / 1000;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+        {isPlaying ? (
+          <Pause size={20} color={Colors.light.primary} />
+        ) : (
+          <Play size={20} color={Colors.light.primary} />
+        )}
+      </TouchableOpacity>
+
+      <View style={styles.info}>
+        <Text style={styles.label}>Recording {index + 1}</Text>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progress,
+                { width: duration > 0 ? `${(position / duration) * 100}%` : '0%' },
+              ]}
+            />
+          </View>
+          <Text style={styles.time}>
+            {formatTime(position)} / {formatTime(duration)}
+          </Text>
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
+        <Trash2 size={18} color={Colors.light.error} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.light.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  },
+  info: {
+    flex: 1,
+  },
+  label: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.light.text,
+    marginBottom: Spacing.xs,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: Colors.light.borderLight,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progress: {
+    height: '100%',
+    backgroundColor: Colors.light.primary,
+  },
+  time: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.textSecondary,
+    minWidth: 80,
+  },
+  deleteButton: {
+    padding: Spacing.xs,
+    marginLeft: Spacing.xs,
+  },
+});

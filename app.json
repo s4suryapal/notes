@@ -10,6 +10,8 @@
     "newArchEnabled": true,
     "jsEngine": "hermes",
     "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
     "assetBundlePatterns": [
@@ -20,12 +22,21 @@
       "bundleIdentifier": "com.notesai.app",
       "newArchEnabled": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio notes.",
+        "NSCameraUsageDescription": "This app needs access to the camera to capture photos for your notes.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to attach images to notes."
       }
     },
     "android": {
       "package": "com.notesai.app",
       "newArchEnabled": true,
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -40,26 +51,12 @@
       "expo-dev-client",
       "expo-router",
       "expo-font",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./notesai_splash.json"
-        }
-      ],
       "expo-web-browser",
       [
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to add photos to notes.",
           "microphonePermission": false
-        }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
         }
       ]
     ],

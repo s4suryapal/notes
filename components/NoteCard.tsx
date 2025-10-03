@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import { MoveVertical as MoreVertical, Star } from 'lucide-react-native';
+import { MoreVertical, Star, CheckCircle2, Circle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { HighlightedText } from './HighlightedText';
@@ -34,11 +34,22 @@ function stripHtml(html: string): string {
 interface NoteCardProps {
   note: Note;
   onPress: () => void;
+  onLongPress?: () => void;
   onMenuPress: () => void;
   searchQuery?: string;
+  selectionMode?: boolean;
+  isSelected?: boolean;
 }
 
-export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPress, searchQuery }: NoteCardProps) {
+export const NoteCard = React.memo(function NoteCard({
+  note,
+  onPress,
+  onLongPress,
+  onMenuPress,
+  searchQuery,
+  selectionMode = false,
+  isSelected = false
+}: NoteCardProps) {
   const formattedDate = new Date(note.updated_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: '2-digit',
@@ -56,8 +67,16 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
     <>
       <View style={styles.content}>
         <View style={styles.header}>
-          {note.is_favorite && (
-            <Star size={16} color={Colors.light.secondary} fill={Colors.light.secondary} />
+          {selectionMode ? (
+            isSelected ? (
+              <CheckCircle2 size={24} color={Colors.light.primary} fill={Colors.light.primary} />
+            ) : (
+              <Circle size={24} color={Colors.light.borderLight} />
+            )
+          ) : (
+            note.is_favorite && (
+              <Star size={16} color={Colors.light.secondary} fill={Colors.light.secondary} />
+            )
           )}
         </View>
         {note.title ? (
@@ -120,7 +139,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
   // Render card with appropriate background
   if (background?.type === 'gradient' && background.gradient && background.gradient.length >= 2) {
     return (
-      <TouchableOpacity style={styles.containerNoPadding} onPress={onPress} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.containerNoPadding} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
         <LinearGradient
           colors={background.gradient as [string, string, ...string[]]}
           style={styles.gradientBackground}
@@ -138,6 +157,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
       <TouchableOpacity
         style={[styles.container, { backgroundColor: background.value || Colors.light.surface }]}
         onPress={onPress}
+        onLongPress={onLongPress}
         activeOpacity={0.7}
       >
         {background.pattern === 'grid' && <View style={styles.gridPattern} />}
@@ -153,6 +173,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
     <TouchableOpacity
       style={[styles.container, background?.value && { backgroundColor: background.value }]}
       onPress={onPress}
+      onLongPress={onLongPress}
       activeOpacity={0.7}
     >
       {renderCardContent()}
