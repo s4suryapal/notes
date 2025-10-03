@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Note, Category } from '@/types';
+import { Note, Category, CreateNoteInput } from '@/types';
 import * as Storage from './storage';
 
 interface NotesContextType {
@@ -10,7 +10,7 @@ interface NotesContextType {
   retry: () => Promise<void>;
   refreshNotes: () => Promise<void>;
   refreshCategories: () => Promise<void>;
-  createNote: (title: string, body: string, category_id?: string | null, color?: string | null) => Promise<Note>;
+  createNote: (input: CreateNoteInput) => Promise<Note>;
   updateNote: (id: string, updates: Partial<Note>) => Promise<Note | null>;
   deleteNote: (id: string) => Promise<void>;
   permanentlyDeleteNote: (id: string) => Promise<void>;
@@ -72,13 +72,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Note operations
-  const createNote = useCallback(async (
-    title: string,
-    body: string,
-    category_id?: string | null,
-    color?: string | null
-  ) => {
-    const note = await Storage.createNote(title, body, category_id, color);
+  const createNote = useCallback(async (input: CreateNoteInput) => {
+    const note = await Storage.createNote(input);
     await refreshNotes();
     return note;
   }, [refreshNotes]);

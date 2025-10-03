@@ -10,9 +10,7 @@
     "newArchEnabled": true,
     "jsEngine": "hermes",
     "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#4A90E2"
+      "backgroundColor": "#FFFFFF"
     },
     "assetBundlePatterns": [
       "assets/images/*"
@@ -29,8 +27,8 @@
       "package": "com.notesai.app",
       "newArchEnabled": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#4A90E2"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
@@ -42,6 +40,12 @@
       "expo-dev-client",
       "expo-router",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./notesai_splash.json"
+        }
+      ],
       "expo-web-browser",
       [
         "expo-camera",
@@ -53,9 +57,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon.png",
+          "image": "./assets/images/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#4A90E2"
+          "backgroundColor": "#FFFFFF"
         }
       ]
     ],

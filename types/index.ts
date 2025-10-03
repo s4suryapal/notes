@@ -20,6 +20,15 @@ export interface Note {
   updated_at: string;
 }
 
+export interface CreateNoteInput {
+  title: string;
+  body: string;
+  category_id?: string | null;
+  color?: string | null;
+  checklist_items?: ChecklistItem[];
+  images?: string[];
+}
+
 export interface Category {
   id: string;
   name: string;

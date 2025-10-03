@@ -43,6 +43,10 @@ export function NoteCardSkeleton() {
         <Animated.View style={[styles.bodySkeleton, { opacity }]} />
         <Animated.View style={[styles.bodySkeleton, { opacity }]} />
         <Animated.View style={[styles.bodyShortSkeleton, { opacity }]} />
+        <View style={styles.listSkeletonRow}>
+          <Animated.View style={[styles.listBulletSkeleton, { opacity }]} />
+          <Animated.View style={[styles.listLineSkeleton, { opacity }]} />
+        </View>
 
         {/* Footer skeleton */}
         <View style={styles.footer}>
@@ -95,6 +99,23 @@ const styles = StyleSheet.create({
   bodyShortSkeleton: {
     height: 14,
     width: '80%',
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.light.borderLight,
+  },
+  listSkeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  listBulletSkeleton: {
+    width: 12,
+    height: 12,
+    borderRadius: BorderRadius.round,
+    backgroundColor: Colors.light.borderLight,
+  },
+  listLineSkeleton: {
+    flex: 1,
+    height: 12,
     borderRadius: BorderRadius.sm,
     backgroundColor: Colors.light.borderLight,
   },

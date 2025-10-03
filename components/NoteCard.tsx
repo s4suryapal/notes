@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { MoveVertical as MoreVertical, Star } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { HighlightedText } from './HighlightedText';
-import { FormattedText } from './FormattedText';
+import { getBackgroundById } from './BackgroundPicker';
 import { Note } from '@/types';
+
+// Helper function to strip HTML tags and decode entities for preview
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
 
 interface NoteCardProps {
   note: Note;
@@ -22,14 +36,13 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
     minute: '2-digit',
   });
 
-  const previewText = note.body.substring(0, 100) + (note.body.length > 100 ? '...' : '');
+  const background = useMemo(() => getBackgroundById(note.color), [note.color]);
 
-  return (
-    <TouchableOpacity
-      style={[styles.container, note.color && { backgroundColor: note.color }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+  // Strip HTML for preview
+  const plainTextBody = useMemo(() => stripHtml(note.body || ''), [note.body]);
+
+  const renderCardContent = () => (
+    <>
       <View style={styles.content}>
         <View style={styles.header}>
           {note.is_favorite && (
@@ -69,16 +82,18 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
               </Text>
             )}
           </View>
-        ) : note.body ? (
+        ) : plainTextBody ? (
           searchQuery ? (
             <HighlightedText
-              text={previewText}
+              text={plainTextBody.substring(0, 160) + (plainTextBody.length > 160 ? '...' : '')}
               searchQuery={searchQuery}
               style={styles.body}
               numberOfLines={4}
             />
           ) : (
-            <FormattedText text={previewText} style={styles.body} numberOfLines={4} />
+            <Text style={styles.body} numberOfLines={4}>
+              {plainTextBody.substring(0, 160) + (plainTextBody.length > 160 ? '...' : '')}
+            </Text>
           )
         ) : null}
         <View style={styles.footer}>
@@ -88,6 +103,48 @@ export const NoteCard = React.memo(function NoteCard({ note, onPress, onMenuPres
           </TouchableOpacity>
         </View>
       </View>
+    </>
+  );
+
+  // Render card with appropriate background
+  if (background?.type === 'gradient' && background.gradient && background.gradient.length >= 2) {
+    return (
+      <TouchableOpacity style={styles.containerNoPadding} onPress={onPress} activeOpacity={0.7}>
+        <LinearGradient
+          colors={background.gradient as [string, string, ...string[]]}
+          style={styles.gradientBackground}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          {renderCardContent()}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
+  if (background?.type === 'pattern') {
+    return (
+      <TouchableOpacity
+        style={[styles.container, { backgroundColor: background.value || Colors.light.surface }]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        {background.pattern === 'grid' && <View style={styles.gridPattern} />}
+        {background.pattern === 'floral' && <Text style={styles.patternEmoji}>🌸</Text>}
+        {background.pattern === 'strawberry' && <Text style={styles.patternEmoji}>🍓</Text>}
+        {renderCardContent()}
+      </TouchableOpacity>
+    );
+  }
+
+  // Solid color or no background
+  return (
+    <TouchableOpacity
+      style={[styles.container, background?.value && { backgroundColor: background.value }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {renderCardContent()}
     </TouchableOpacity>
   );
 });
@@ -99,6 +156,13 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     marginBottom: Spacing.base,
     ...Shadows.md,
+  },
+  containerNoPadding: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.base,
+    ...Shadows.md,
+    overflow: 'hidden',
   },
   content: {
     gap: Spacing.sm,
@@ -154,5 +218,27 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     color: Colors.light.textTertiary,
     fontStyle: 'italic',
+  },
+  gradientBackground: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.base,
+  },
+  gridPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: BorderRadius.lg,
+  },
+  patternEmoji: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    fontSize: 60,
+    opacity: 0.1,
+    transform: [{ translateX: -30 }, { translateY: -30 }],
   },
 });

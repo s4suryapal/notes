@@ -10,6 +10,8 @@ export { Toast } from './Toast';
 export { HighlightedText } from './HighlightedText';
 export { ErrorBoundary } from './ErrorBoundary';
 export { ColorPicker } from './ColorPicker';
+export { BackgroundPicker, getBackgroundById } from './BackgroundPicker';
+export type { Background, BackgroundType } from './BackgroundPicker';
 export { ChecklistItemComponent } from './ChecklistItemComponent';
 export { FormattedText } from './FormattedText';
 export type { ToastType } from './Toast';

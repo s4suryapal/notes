@@ -14,27 +14,31 @@ export function ColorPicker({ selectedColor, onColorSelect }: ColorPickerProps) 
       <Text style={styles.title}>Color</Text>
       <View style={styles.colorGrid}>
         {NoteColors.map((noteColor) => (
-          <TouchableOpacity
-            key={noteColor.name}
-            style={[
-              styles.colorOption,
-              noteColor.value
-                ? { backgroundColor: noteColor.value }
-                : styles.defaultColorOption,
-              selectedColor === noteColor.value && styles.selectedOption,
-            ]}
-            onPress={() => onColorSelect(noteColor.value)}
-            activeOpacity={0.7}
-          >
-            {selectedColor === noteColor.value && (
-              <View style={styles.checkContainer}>
-                <Check size={20} color={Colors.light.text} strokeWidth={3} />
-              </View>
-            )}
-            {!noteColor.value && (
-              <View style={styles.defaultColorSlash} />
-            )}
-          </TouchableOpacity>
+          <View key={noteColor.name} style={styles.colorItem}>
+            <TouchableOpacity
+              style={[
+                styles.colorOption,
+                noteColor.value
+                  ? { backgroundColor: noteColor.value }
+                  : styles.defaultColorOption,
+                selectedColor === noteColor.value && styles.selectedOption,
+              ]}
+              onPress={() => onColorSelect(noteColor.value)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${noteColor.name} color`}
+            >
+              {selectedColor === noteColor.value && (
+                <View style={styles.checkContainer}>
+                  <Check size={20} color={Colors.light.text} strokeWidth={3} />
+                </View>
+              )}
+              {!noteColor.value && (
+                <View style={styles.defaultColorSlash} />
+              )}
+            </TouchableOpacity>
+            <Text style={styles.colorLabel}>{noteColor.name}</Text>
+          </View>
         ))}
       </View>
     </View>
@@ -55,6 +59,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.md,
+  },
+  colorItem: {
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   colorOption: {
     width: 50,
@@ -86,5 +94,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.error,
     transform: [{ rotate: '45deg' }],
     position: 'absolute',
+  },
+  colorLabel: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.textSecondary,
   },
 });

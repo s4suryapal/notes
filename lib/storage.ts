@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Note, Category } from '@/types';
+import { Note, Category, CreateNoteInput } from '@/types';
 
 // Storage Keys
 const KEYS = {
@@ -83,12 +83,14 @@ export async function getNoteById(id: string): Promise<Note | null> {
 /**
  * Create new note
  */
-export async function createNote(
-  title: string,
-  body: string,
-  category_id: string | null = null,
-  color: string | null = null
-): Promise<Note> {
+export async function createNote({
+  title,
+  body,
+  category_id = null,
+  color = null,
+  checklist_items,
+  images,
+}: CreateNoteInput): Promise<Note> {
   try {
     const now = new Date().toISOString();
     const note: Note = {
@@ -103,6 +105,14 @@ export async function createNote(
       created_at: now,
       updated_at: now,
     };
+
+    if (checklist_items?.length) {
+      note.checklist_items = checklist_items;
+    }
+
+    if (images?.length) {
+      note.images = images;
+    }
 
     // Save note
     await AsyncStorage.setItem(

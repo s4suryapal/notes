@@ -189,16 +189,6 @@ export default function NoteEditorScreen() {
     );
   }, [deleteNote, handleCloseActionsSheet, router]);
 
-  // Helper to strip HTML and check for actual content
-  const hasActualContent = (html: string): boolean => {
-    const stripped = html
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/&nbsp;/g, ' ') // Replace nbsp with space
-      .replace(/\s+/g, '') // Remove all whitespace
-      .trim();
-    return stripped.length > 0;
-  };
-
   // Auto-save function with debouncing
   const saveNote = useCallback(async (
     titleText: string,
@@ -206,28 +196,16 @@ export default function NoteEditorScreen() {
     categoryId: string | null,
     color: string | null = null
   ) => {
-    const hasTitleContent = titleText.trim().length > 0;
-    const hasBodyContent = hasActualContent(bodyText);
+    const hasContent = titleText.trim().length > 0 || bodyText.trim().length > 0;
     const hasImages = images.length > 0;
 
-    console.log('saveNote called:', {
-      hasTitleContent,
-      hasBodyContent,
-      hasImages,
-      titleText,
-      bodyLength: bodyText.length,
-      currentNoteId: currentNoteId.current,
-    });
-
-    if (!hasTitleContent && !hasBodyContent && !hasImages) {
-      console.log('No content to save, skipping');
+    if (!hasContent && !hasImages) {
       return;
     }
 
     try {
       if (currentNoteId.current) {
         // Update existing note
-        console.log('Updating note:', currentNoteId.current);
         await updateNote(currentNoteId.current, {
           title: titleText,
           body: bodyText,
@@ -235,10 +213,7 @@ export default function NoteEditorScreen() {
           color: color,
           images: images.length > 0 ? images : undefined,
         });
-        console.log('Note updated successfully');
       } else {
-        // Create new note
-        console.log('Creating new note');
         const newNote = await createNote({
           title: titleText,
           body: bodyText,
@@ -247,7 +222,6 @@ export default function NoteEditorScreen() {
           images: images.length > 0 ? images : undefined,
         });
         currentNoteId.current = newNote.id;
-        console.log('New note created:', newNote.id);
       }
     } catch (error) {
       console.error('Error saving note:', error);
@@ -317,8 +291,6 @@ export default function NoteEditorScreen() {
       }
     };
   }, []);
-
-
 
   // Image handling
   const handleCameraPress = async () => {
@@ -536,16 +508,17 @@ export default function NoteEditorScreen() {
       )}
 
       {/* Main Content with Background */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        {renderBackgroundWrapper(
-          <ScrollView
-            ref={scrollRef}
-            style={styles.content}
-            contentContainerStyle={styles.contentContainer}
-            keyboardShouldPersistTaps="handled"
+      {renderBackgroundWrapper(
+        <ScrollView
+          ref={scrollRef}
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
           >
             <TextInput
               style={styles.titleInput}
@@ -578,7 +551,6 @@ export default function NoteEditorScreen() {
                 `,
               }}
               useContainer={true}
-              initialFocus={false}
             />
 
             {/* Images Display */}
@@ -603,37 +575,38 @@ export default function NoteEditorScreen() {
                 </ScrollView>
               </View>
             )}
-          </ScrollView>
-        )}
+          </KeyboardAvoidingView>
+        </ScrollView>
+      )}
 
-        {/* RichToolbar - Moves with keyboard */}
-        <RichToolbar
-          editor={richTextRef}
-          actions={[
-            actions.setBold,
-            actions.setItalic,
-            actions.setUnderline,
-            actions.setStrikethrough,
-            actions.insertBulletsList,
-            actions.insertOrderedList,
-            'camera',
-            'gallery',
-            'palette',
-          ]}
-          iconMap={{
-            camera: () => <Camera size={20} color={Colors.light.text} />,
-            gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
-            palette: () => <Palette size={20} color={paletteIconColor} />,
-          }}
-          camera={handleCameraPress}
-          gallery={handleImagePickerPress}
-          palette={() => setShowColorPicker(true)}
-          style={styles.richToolbar}
-          selectedIconTint={Colors.light.primary}
-          iconTint={Colors.light.text}
-          disabledIconTint={Colors.light.textTertiary}
-        />
-      </KeyboardAvoidingView>
+      {/* RichToolbar - Outside backgroundWrapper to stay visible with keyboard */}
+      <RichToolbar
+        editor={richTextRef}
+        actions={[
+          actions.setBold,
+          actions.setItalic,
+          actions.setUnderline,
+          actions.setStrikethrough,
+          actions.insertBulletsList,
+          actions.insertOrderedList,
+          actions.checkboxList,
+          'camera',
+          'gallery',
+          'palette',
+        ]}
+        iconMap={{
+          camera: () => <Camera size={20} color={Colors.light.text} />,
+          gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
+          palette: () => <Palette size={20} color={paletteIconColor} />,
+        }}
+        camera={handleCameraPress}
+        gallery={handleImagePickerPress}
+        palette={() => setShowColorPicker(true)}
+        style={styles.richToolbar}
+        selectedIconTint={Colors.light.primary}
+        iconTint={Colors.light.text}
+        disabledIconTint={Colors.light.textTertiary}
+      />
 
       {/* Background Picker Modal */}
       <Modal
