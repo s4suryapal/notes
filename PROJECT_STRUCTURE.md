@@ -35,33 +35,40 @@ NotesAI is a modern, mobile-first notes application built with React Native and 
 
 ```
 /app
-  /(tabs)
-    _layout.tsx       # Tab navigation configuration
-    index.tsx         # Home screen (Notes list)
-    folders.tsx       # Folders/Categories screen
-    search.tsx        # Search screen
-    more.tsx          # More/Menu screen
+  /(drawer)
+    _layout.tsx       # Drawer with custom content
+    index.tsx         # Notes (Home)
+    folders.tsx       # Folders/Categories (with reorder modal)
+    archive.tsx       # Archive
+    trash.tsx         # Trash
+    favorites.tsx     # Favorite Notes
+    calendar.tsx      # Calendar (stub)
+    import.tsx        # Import file (stub)
+    sync.tsx          # Sync & Backup (stub)
+    settings.tsx      # Settings
+    premium.tsx       # Upgrade to Premium
+    search.tsx        # Search route (opened from header icon)
   /note
     [id].tsx          # Note editor (create/edit)
-  _layout.tsx         # Root layout with Stack navigation
+  _layout.tsx         # Root stack (hosts (drawer) + modal)
 
 /components
   NoteCard.tsx        # Individual note card component
   CategoryChip.tsx    # Category filter chip
   CategoryCard.tsx    # Folder card for grid layout
-  FAB.tsx            # Floating action button
-  EmptyState.tsx     # Empty state with illustration
-  index.ts           # Barrel exports
+  FAB.tsx             # Floating action button
+  EmptyState.tsx      # Empty state with illustration
+  index.ts            # Barrel exports
 
 /constants
-  theme.ts           # Design tokens and theme configuration
+  theme.ts            # Design tokens and theme configuration
 
 /types
-  index.ts           # TypeScript interfaces
+  index.ts            # TypeScript interfaces
 
 /lib
-  supabase.ts        # Supabase client configuration
-  mockData.ts        # Mock data for development
+  supabase.ts         # Supabase client configuration
+  mockData.ts         # Mock data for development
 
 /hooks
   useFrameworkReady.ts  # Required framework hook
@@ -153,11 +160,17 @@ NotesAI is a modern, mobile-first notes application built with React Native and 
 
 ```
 Stack Navigator (Root)
-├── Tabs Navigator
+├── Drawer Navigator
 │   ├── Notes (index)
 │   ├── Folders
-│   ├── Search
-│   └── More
+│   ├── Favorites
+│   ├── Archive
+│   ├── Trash
+│   ├── Calendar
+│   ├── Sync & Backup
+│   ├── Import
+│   ├── Settings
+│   └── Upgrade to Premium
 └── Note Editor (Modal)
     └── [id] - Dynamic route for edit/create
 ```

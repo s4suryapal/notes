@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
-  MoveVertical as MoreVertical,
+  MoreVertical,
   Camera,
   Image as ImageIcon,
   Palette,
@@ -204,11 +204,13 @@ export default function NoteEditorScreen() {
     titleText: string,
     bodyText: string,
     categoryId: string | null,
-    color: string | null = null
+    color: string | null = null,
+    imagesToSave?: string[]
   ) => {
+    const imageArray = imagesToSave !== undefined ? imagesToSave : images;
     const hasTitleContent = titleText.trim().length > 0;
     const hasBodyContent = hasActualContent(bodyText);
-    const hasImages = images.length > 0;
+    const hasImages = imageArray.length > 0;
 
     console.log('saveNote called:', {
       hasTitleContent,
@@ -233,7 +235,7 @@ export default function NoteEditorScreen() {
           body: bodyText,
           category_id: categoryId,
           color: color,
-          images: images.length > 0 ? images : undefined,
+          images: imageArray.length > 0 ? imageArray : undefined,
         });
         console.log('Note updated successfully');
       } else {
@@ -244,7 +246,7 @@ export default function NoteEditorScreen() {
           body: bodyText,
           category_id: categoryId,
           color,
-          images: images.length > 0 ? images : undefined,
+          images: imageArray.length > 0 ? imageArray : undefined,
         });
         currentNoteId.current = newNote.id;
         console.log('New note created:', newNote.id);
@@ -255,13 +257,13 @@ export default function NoteEditorScreen() {
   }, [createNote, updateNote, images]);
 
   // Debounced save
-  const debouncedSave = useCallback((titleText: string, bodyText: string, categoryId: string | null, color: string | null) => {
+  const debouncedSave = useCallback((titleText: string, bodyText: string, categoryId: string | null, color: string | null, imagesToSave?: string[]) => {
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
 
     saveTimeout.current = setTimeout(() => {
-      saveNote(titleText, bodyText, categoryId, color);
+      saveNote(titleText, bodyText, categoryId, color, imagesToSave);
     }, 300) as any; // 300ms debounce
   }, [saveNote]);
 
@@ -345,7 +347,7 @@ export default function NoteEditorScreen() {
       if (!result.canceled && result.assets[0]) {
         const newImages = [...images, result.assets[0].uri];
         setImages(newImages);
-        debouncedSave(title, body, selectedCategory, selectedColor);
+        debouncedSave(title, body, selectedCategory, selectedColor, newImages);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -378,7 +380,7 @@ export default function NoteEditorScreen() {
       if (!result.canceled && result.assets[0]) {
         const newImages = [...images, result.assets[0].uri];
         setImages(newImages);
-        debouncedSave(title, body, selectedCategory, selectedColor);
+        debouncedSave(title, body, selectedCategory, selectedColor, newImages);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -398,7 +400,7 @@ export default function NoteEditorScreen() {
           onPress: () => {
             const newImages = images.filter((_, i) => i !== index);
             setImages(newImages);
-            debouncedSave(title, body, selectedCategory, selectedColor);
+            debouncedSave(title, body, selectedCategory, selectedColor, newImages);
           },
         },
       ]
@@ -619,6 +621,10 @@ export default function NoteEditorScreen() {
             'camera',
             'gallery',
             'palette',
+            actions.keyboard,
+            actions.removeFormat,
+            actions.undo,
+            actions.redo,
           ]}
           iconMap={{
             camera: () => <Camera size={20} color={Colors.light.text} />,

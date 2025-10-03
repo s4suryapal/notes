@@ -149,11 +149,13 @@ export function Toast({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Spacing.xl,
+    bottom: 100,
     left: Spacing.base,
     right: Spacing.base,
     borderRadius: BorderRadius.lg,
     borderLeftWidth: 4,
+    zIndex: 9999,
+    elevation: 9999,
     ...Shadows.lg,
   },
   content: {

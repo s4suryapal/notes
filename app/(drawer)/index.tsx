@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check } from 'lucide-react-native';
+import { router, useNavigation } from 'expo-router';
+import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, Plus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { SwipeableNoteCard, NoteCardSkeleton, FormattedText } from '@/components';
@@ -18,8 +18,15 @@ import { ViewMode, Note, SortBy } from '@/types';
 
 export default function HomeScreen() {
   const layout = useWindowDimensions();
+  const navigation = useNavigation<any>();
+  const openDrawer = () => {
+    const parent = navigation.getParent?.();
+    // Try parent drawer first, fallback to current navigator
+    if (parent?.openDrawer) parent.openDrawer();
+    else navigation.openDrawer?.();
+  };
   const insets = useSafeAreaInsets();
-  const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, refreshNotes, updateNote } = useNotes();
+  const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, refreshNotes, updateNote, createCategory } = useNotes();
   const { showSuccess } = useToast();
 
   const [index, setIndex] = useState(0);
@@ -29,8 +36,11 @@ export default function HomeScreen() {
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState(Colors.light.primary);
 
-  // Add "All" category at the beginning
+  // Add "All" category at the beginning and "+" at the end
   const allCategories = useMemo(() => [
     {
       id: 'all',
@@ -42,6 +52,15 @@ export default function HomeScreen() {
       updated_at: '',
     },
     ...categories,
+    {
+      id: 'add_new',
+      name: '+',
+      color: Colors.light.primary,
+      icon: null,
+      order_index: 9999,
+      created_at: '',
+      updated_at: '',
+    },
   ], [categories]);
 
   const [routes] = useState(
@@ -145,7 +164,41 @@ export default function HomeScreen() {
     }
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      Alert.alert('Error', 'Please enter a category name');
+      return;
+    }
+
+    try {
+      await createCategory(newCategoryName.trim(), newCategoryColor);
+      showSuccess('Category created');
+      setNewCategoryName('');
+      setNewCategoryColor(Colors.light.primary);
+      setShowCreateCategoryModal(false);
+      // Switch to the last real category (not the "+" tab)
+      setIndex(categories.length);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create category');
+    }
+  };
+
+  const handleTabChange = (newIndex: number) => {
+    // Check if user tapped the "+" tab (last tab)
+    if (newIndex === allCategories.length - 1) {
+      setShowCreateCategoryModal(true);
+      // Don't change the index, stay on current tab
+      return;
+    }
+    setIndex(newIndex);
+  };
+
   const renderNotesList = (categoryId: string) => {
+    // Don't render anything for the "add_new" tab
+    if (categoryId === 'add_new') {
+      return null;
+    }
+
     const filteredNotes = getFilteredNotes(categoryId);
 
     if (filteredNotes.length === 0) {
@@ -316,7 +369,9 @@ export default function HomeScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Menu size={24} color={Colors.light.text} />
+            <TouchableOpacity onPress={openDrawer}>
+              <Menu size={24} color={Colors.light.text} />
+            </TouchableOpacity>
             <Text style={styles.headerTitle}>Notes</Text>
           </View>
         </View>
@@ -334,7 +389,9 @@ export default function HomeScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Menu size={24} color={Colors.light.text} />
+            <TouchableOpacity onPress={openDrawer}>
+              <Menu size={24} color={Colors.light.text} />
+            </TouchableOpacity>
             <Text style={styles.headerTitle}>Notes</Text>
           </View>
         </View>
@@ -352,7 +409,7 @@ export default function HomeScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => {}}>
+          <TouchableOpacity onPress={openDrawer}>
             <Menu size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Notes</Text>
@@ -380,7 +437,7 @@ export default function HomeScreen() {
       <TabView
         navigationState={{ index, routes: allCategories.map(cat => ({ key: cat.id, title: cat.name })) }}
         renderScene={renderScene}
-        onIndexChange={setIndex}
+        onIndexChange={handleTabChange}
         initialLayout={{ width: layout.width }}
         renderTabBar={props => (
           <TabBar
@@ -450,6 +507,89 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Create Category Modal */}
+      <Modal
+        visible={showCreateCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateCategoryModal(false)}
+        statusBarTranslucent
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <Pressable style={styles.sortModalOverlay} onPress={() => setShowCreateCategoryModal(false)}>
+            <Pressable style={styles.createCategoryModal} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.createCategoryHeader}>
+                <Text style={styles.sortModalTitle}>New Category</Text>
+                <TouchableOpacity onPress={() => setShowCreateCategoryModal(false)}>
+                  <X size={24} color={Colors.light.text} />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.categoryInput}
+                placeholder="Category name"
+                placeholderTextColor={Colors.light.textTertiary}
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                autoFocus
+              />
+
+              <Text style={styles.colorPickerLabel}>Color</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorPicker}>
+                {[
+                  Colors.light.primary,
+                  Colors.light.secondary,
+                  Colors.light.accent,
+                  Colors.light.warning,
+                  '#9C27B0',
+                  '#FF5722',
+                  '#4CAF50',
+                  '#00BCD4',
+                  '#795548',
+                  '#607D8B',
+                ].map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color },
+                      newCategoryColor === color && styles.colorOptionSelected,
+                    ]}
+                    onPress={() => setNewCategoryColor(color)}
+                  >
+                    {newCategoryColor === color && (
+                      <Check size={20} color={Colors.light.surface} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.createCategoryActions}>
+                <TouchableOpacity
+                  style={[styles.categoryButton, styles.categoryButtonCancel]}
+                  onPress={() => {
+                    setShowCreateCategoryModal(false);
+                    setNewCategoryName('');
+                    setNewCategoryColor(Colors.light.primary);
+                  }}
+                >
+                  <Text style={styles.categoryButtonCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.categoryButton, styles.categoryButtonCreate]}
+                  onPress={handleCreateCategory}
+                >
+                  <Text style={styles.categoryButtonCreateText}>Create</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -628,5 +768,80 @@ const styles = StyleSheet.create({
     fontSize: 60,
     opacity: 0.1,
     transform: [{ translateX: -30 }, { translateY: -30 }],
+  },
+  createCategoryModal: {
+    backgroundColor: Colors.light.surface,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xxxl,
+    ...Shadows.xl,
+  },
+  createCategoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  categoryInput: {
+    backgroundColor: Colors.light.background,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.text,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  colorPickerLabel: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.light.text,
+    marginBottom: Spacing.sm,
+  },
+  colorPicker: {
+    marginBottom: Spacing.xl,
+  },
+  colorOption: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: Spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  colorOptionSelected: {
+    borderColor: Colors.light.text,
+  },
+  createCategoryActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  categoryButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  categoryButtonCancel: {
+    backgroundColor: Colors.light.background,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  categoryButtonCancelText: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.light.text,
+  },
+  categoryButtonCreate: {
+    backgroundColor: Colors.light.primary,
+  },
+  categoryButtonCreateText: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.light.surface,
   },
 });

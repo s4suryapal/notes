@@ -28,7 +28,7 @@ export default function RootLayout() {
         <ToastProvider>
           <NotesProvider>
             <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(drawer)" />
               <Stack.Screen name="note/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="+not-found" />
             </Stack>

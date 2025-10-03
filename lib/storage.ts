@@ -266,7 +266,9 @@ export async function toggleArchive(id: string): Promise<Note | null> {
 export async function getAllCategories(): Promise<Category[]> {
   try {
     const listStr = await AsyncStorage.getItem(KEYS.CATEGORIES_LIST);
-    return listStr ? JSON.parse(listStr) : [];
+    const cats: Category[] = listStr ? JSON.parse(listStr) : [];
+    // Always return sorted by order_index ascending
+    return cats.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
   } catch (error) {
     console.error('Error getting categories:', error);
     return [];
@@ -330,6 +332,41 @@ export async function updateCategory(
     return categories[index];
   } catch (error) {
     console.error('Error updating category:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reorder categories by an array of IDs
+ */
+export async function updateCategoriesOrder(orderedIds: string[]): Promise<void> {
+  try {
+    const existing = await getAllCategories();
+    const byId = new Map(existing.map((c) => [c.id, c]));
+
+    const reordered: Category[] = [];
+    const now = new Date().toISOString();
+
+    // Apply provided order first
+    orderedIds.forEach((id, idx) => {
+      const cat = byId.get(id);
+      if (cat) {
+        reordered.push({ ...cat, order_index: idx, updated_at: now });
+        byId.delete(id);
+      }
+    });
+
+    // Append any categories not included in orderedIds, preserving relative order
+    const remaining = Array.from(byId.values()).sort(
+      (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)
+    );
+    remaining.forEach((cat, i) => {
+      reordered.push({ ...cat, order_index: reordered.length + i, updated_at: now });
+    });
+
+    await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(reordered));
+  } catch (error) {
+    console.error('Error updating categories order:', error);
     throw error;
   }
 }

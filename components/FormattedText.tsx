@@ -2,6 +2,30 @@ import React from 'react';
 import { Text, View, StyleSheet, TextStyle } from 'react-native';
 import { Colors, Typography, Spacing } from '@/constants/theme';
 
+// Helper function to strip HTML tags and decode entities
+function stripHtml(html: string): string {
+  if (!html) return '';
+
+  return html
+    .replace(/<style[^>]*>.*?<\/style>/gi, '') // Remove style tags and content
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags and content
+    .replace(/<br\s*\/?>/gi, '\n') // Convert br to newline
+    .replace(/<\/p>/gi, '\n') // Convert closing p to newline
+    .replace(/<\/div>/gi, '\n') // Convert closing div to newline
+    .replace(/<li>/gi, '• ') // Convert li to bullet
+    .replace(/<[^>]+>/g, '') // Remove all remaining HTML tags
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/\n\s*\n/g, '\n') // Remove multiple newlines
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+}
+
 interface FormattedTextProps {
   text: string;
   style?: TextStyle;
@@ -10,7 +34,9 @@ interface FormattedTextProps {
 
 export function FormattedText({ text, style, numberOfLines }: FormattedTextProps) {
   const renderFormattedText = () => {
-    const lines = text.split('\n');
+    // Strip HTML first
+    const plainText = stripHtml(text);
+    const lines = plainText.split('\n');
 
     return lines.map((line, lineIndex) => {
       // Check for bullet list

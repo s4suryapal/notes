@@ -9,14 +9,25 @@ import { Note } from '@/types';
 
 // Helper function to strip HTML tags and decode entities for preview
 function stripHtml(html: string): string {
+  if (!html) return '';
+
   return html
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/<style[^>]*>.*?<\/style>/gi, '') // Remove style tags and content
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags and content
+    .replace(/<br\s*\/?>/gi, '\n') // Convert br to newline
+    .replace(/<\/p>/gi, '\n') // Convert closing p to newline
+    .replace(/<\/div>/gi, '\n') // Convert closing div to newline
+    .replace(/<li>/gi, '• ') // Convert li to bullet
+    .replace(/<[^>]+>/g, '') // Remove all remaining HTML tags
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/\n\s*\n/g, '\n') // Remove multiple newlines
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
     .trim();
 }
 

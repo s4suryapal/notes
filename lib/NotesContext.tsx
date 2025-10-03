@@ -20,6 +20,7 @@ interface NotesContextType {
   createCategory: (name: string, color: string, icon?: string | null) => Promise<Category>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<Category | null>;
   deleteCategory: (id: string) => Promise<void>;
+  reorderCategories: (orderedIds: string[]) => Promise<void>;
 }
 
 const NotesContext = createContext<NotesContextType | null>(null);
@@ -65,7 +66,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const refreshCategories = useCallback(async () => {
     try {
       const allCategories = await Storage.getAllCategories();
-      setCategories(allCategories);
+      // Ensure deterministic order by order_index
+      setCategories([...allCategories].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
     } catch (error) {
       console.error('Error refreshing categories:', error);
     }
@@ -128,6 +130,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     await refreshNotes(); // Refresh notes because category_id might have changed
   }, [refreshCategories, refreshNotes]);
 
+  const reorderCategories = useCallback(async (orderedIds: string[]) => {
+    await Storage.updateCategoriesOrder(orderedIds);
+    await refreshCategories();
+  }, [refreshCategories]);
+
   const value: NotesContextType = {
     notes,
     categories,
@@ -146,6 +153,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     createCategory,
     updateCategory,
     deleteCategory,
+    reorderCategories,
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
