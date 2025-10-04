@@ -2,46 +2,6 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
-android {
-    ndkVersion "27.1.12297006"
-    compileSdkVersion rootProject.ext.compileSdkVersion
-
-    defaultConfig {
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
-    }
-
-    buildTypes {
-        debug {
-            initWith debug
-            ndk {
-                debugSymbolLevel 'FULL'
-            }
-        }
-        release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-        }
-    }
-
-    externalNativeBuild {
-        cmake {
-            path "${rootProject.projectDir}/../node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
-            version "3.22.1"
-        }
-    }
-
-    buildFeatures {
-        prefab true
-    }
-
-    packagingOptions {
-        pickFirst '**/*.so'
-    }
-}
-
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 /**
@@ -57,7 +17,6 @@ react {
     // 📦 Bundle optimizations for smaller app size
     enableBundleCompression = true                   // Enable compression
     hermesFlags = ["-O", "-output-source-map"]       // Optimize Hermes bytecode
-
     // Use Expo CLI to bundle the app, this ensures the Metro config
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
@@ -140,8 +99,6 @@ android {
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
-        // 📦 App size optimization - NDK filters handled by splits configuration below
-
         // 📦 Vector drawable support for smaller image assets
         vectorDrawables {
             useSupportLibrary = true
@@ -159,31 +116,21 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            // Disable minification and shrinking in debug builds for faster compilation
-            minifyEnabled false
-            shrinkResources false
-            debuggable true
         }
         release {
-            // 📦 For production builds with smaller app size, enable these:
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
+
+            // 📦 AGGRESSIVE SIZE OPTIMIZATION
             minifyEnabled true           // Enable R8 code shrinking
             shrinkResources true         // Enable resource shrinking
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", "proguard-memory-optimize.pro"
-            zipAlignEnabled true         // Optimize APK alignment
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            crunchPngs true              // Optimize PNG files
 
-            // Additional size optimizations
+            // Additional optimizations
             debuggable false             // Remove debug info
-        }
-    }
-
-    // 📦 MAJOR SIZE REDUCTION: Split APK by CPU architecture (reduces size by ~50%)
-    splits {
-        abi {
-            reset()
-            enable true
-            universalApk false  // Don't generate universal APK
-            include "armeabi-v7a", "arm64-v8a"  // Only common architectures
+            zipAlignEnabled true         // Optimize APK alignment
         }
     }
     packagingOptions {
@@ -214,11 +161,21 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
-        // 📦 Keep selective no-compress to avoid unnecessary APK bloat
-        noCompress 'pak', 'dat', 'bin'              // Only if these exist in assets
+        // 📦 Compress only necessary asset types
+        noCompress 'pak', 'dat', 'bin'
     }
 
-    // 📦 Bundle configuration for smaller app size
+    // 📦 MAJOR SIZE REDUCTION: Split APK by CPU architecture (reduces size by ~50%)
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false  // Don't generate universal APK
+            include "armeabi-v7a", "arm64-v8a"  // Only common architectures
+        }
+    }
+
+    // 📦 Bundle configuration for smaller app size (for AAB)
     bundle {
         language {
             enableSplit = true      // Split by language

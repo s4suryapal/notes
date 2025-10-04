@@ -1,10 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Alert, Share as RNShare, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Alert, Share as RNShare, ScrollView, Clipboard } from 'react-native';
 import { useState, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
-import * as Clipboard from 'expo-clipboard';
 import ViewShot from 'react-native-view-shot';
 import { Star, Archive, Share, Info, Eye, Clock, X, FolderInput, Trash2, FileText, FileDown, Image as ImageIcon, Copy, Printer, Music } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
@@ -132,8 +131,12 @@ export function NoteActionsSheet({
 
   const handleExport = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Don't close parent modal immediately - set state first
     setShowExportOptions(true);
-    onClose();
+    // Close parent modal after a small delay to prevent race condition
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
   const handleExportText = async () => {
@@ -153,8 +156,6 @@ export function NoteActionsSheet({
           mimeType: 'text/plain',
           dialogTitle: 'Export Note as Text',
         });
-      } else {
-        Alert.alert('Success', 'Note exported successfully');
       }
       setShowExportOptions(false);
     } catch (error) {
@@ -202,8 +203,6 @@ export function NoteActionsSheet({
           mimeType: 'application/pdf',
           dialogTitle: 'Export Note as PDF',
         });
-      } else {
-        Alert.alert('Success', 'PDF created successfully');
       }
       setShowExportOptions(false);
     } catch (error) {
@@ -233,8 +232,6 @@ export function NoteActionsSheet({
           mimeType: 'text/markdown',
           dialogTitle: 'Export Note as Markdown',
         });
-      } else {
-        Alert.alert('Success', 'Markdown file created successfully');
       }
       setShowExportOptions(false);
     } catch (error) {
@@ -280,14 +277,10 @@ export function NoteActionsSheet({
 
       const { uri } = await Print.printToFileAsync({ html });
 
-      // For now, share the PDF as image alternative
-      // A proper image implementation would need ViewShot with a rendered component
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           dialogTitle: 'Export Note as Image',
         });
-      } else {
-        Alert.alert('Success', 'Note exported successfully');
       }
       setShowExportOptions(false);
     } catch (error) {
@@ -303,7 +296,7 @@ export function NoteActionsSheet({
         ? `${note.title}\n\n${plainText}`
         : plainText;
 
-      await Clipboard.setStringAsync(content);
+      Clipboard.setString(content);
       Alert.alert('Copied', 'Note copied to clipboard');
       setShowExportOptions(false);
     } catch (error) {
@@ -360,19 +353,16 @@ export function NoteActionsSheet({
         return;
       }
 
-      // If single audio file, share it directly
+      // Share audio file using expo-sharing
       if (note.audio_recordings.length === 1) {
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(note.audio_recordings[0], {
             mimeType: 'audio/m4a',
             dialogTitle: 'Export Audio Recording',
           });
-        } else {
-          Alert.alert('Success', 'Audio file ready for export');
         }
       } else {
-        // Multiple audio files - share them one by one or create a zip
-        // For now, share the first one and show count
+        // Multiple audio files - share first one
         Alert.alert(
           'Multiple Audio Files',
           `This note has ${note.audio_recordings.length} audio recordings. Sharing first recording...`,

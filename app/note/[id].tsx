@@ -35,7 +35,6 @@ import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
-import * as Clipboard from 'expo-clipboard';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
 import { BackgroundPicker, getBackgroundById, NoteActionsSheet } from '@/components';
@@ -70,8 +69,6 @@ export default function NoteEditorScreen() {
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [loading, setLoading] = useState(!isNewNote);
-  const [clipboardContent, setClipboardContent] = useState<string | null>(null);
-  const [showClipboardSuggestion, setShowClipboardSuggestion] = useState(false);
 
   const currentNoteId = useRef<string | null>(isNewNote ? null : id as string);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -124,27 +121,6 @@ export default function NoteEditorScreen() {
     return currentBackground.value || Colors.light.primary;
   }, [currentBackground]);
 
-  // Check clipboard for new notes
-  useEffect(() => {
-    if (isNewNote && !initialLoadDone.current) {
-      const checkClipboard = async () => {
-        try {
-          const hasClipboard = await Clipboard.hasStringAsync();
-          if (hasClipboard) {
-            const text = await Clipboard.getStringAsync();
-            if (text && text.trim().length > 0 && text.trim().length < 1000) {
-              setClipboardContent(text);
-              setShowClipboardSuggestion(true);
-            }
-          }
-        } catch (error) {
-          console.error('Error checking clipboard:', error);
-        }
-      };
-      checkClipboard();
-      initialLoadDone.current = true;
-    }
-  }, [isNewNote]);
 
   // Load existing note
   useEffect(() => {
@@ -172,18 +148,6 @@ export default function NoteEditorScreen() {
     setShowActionsSheet(true);
   }, []);
 
-  const handleAcceptClipboard = useCallback(() => {
-    if (clipboardContent) {
-      setBody(clipboardContent);
-      richTextRef.current?.setContentHTML(clipboardContent);
-    }
-    setShowClipboardSuggestion(false);
-  }, [clipboardContent]);
-
-  const handleDismissClipboard = useCallback(() => {
-    setShowClipboardSuggestion(false);
-    setClipboardContent(null);
-  }, []);
 
   const handleCloseActionsSheet = useCallback(() => {
     setShowActionsSheet(false);
@@ -690,23 +654,6 @@ export default function NoteEditorScreen() {
         </View>
       </View>
 
-      {/* Clipboard Suggestion Banner */}
-      {showClipboardSuggestion && clipboardContent && (
-        <View style={styles.clipboardBanner}>
-          <Text style={styles.clipboardText} numberOfLines={1}>
-            Paste from clipboard: "{clipboardContent.substring(0, 50)}{clipboardContent.length > 50 ? '...' : ''}"
-          </Text>
-          <View style={styles.clipboardActions}>
-            <TouchableOpacity onPress={handleDismissClipboard} style={styles.clipboardButton}>
-              <X size={18} color={Colors.light.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleAcceptClipboard} style={[styles.clipboardButton, styles.clipboardButtonAccept]}>
-              <Check size={18} color={Colors.light.surface} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
       {/* Category Picker Modal */}
       {showCategoryPicker && (
         <Pressable style={styles.categoryModalFullOverlay} onPress={() => setShowCategoryPicker(false)}>
@@ -1096,34 +1043,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: Colors.light.text,
     fontWeight: Typography.fontWeight.medium,
-  },
-  clipboardBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.light.primaryLight,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  clipboardText: {
-    flex: 1,
-    fontSize: Typography.fontSize.sm,
-    color: Colors.light.text,
-    marginRight: Spacing.sm,
-  },
-  clipboardActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  clipboardButton: {
-    padding: Spacing.xs,
-    borderRadius: BorderRadius.round,
-    backgroundColor: Colors.light.surface,
-  },
-  clipboardButtonAccept: {
-    backgroundColor: Colors.light.primary,
   },
   categoryModalFullOverlay: {
     position: 'absolute',

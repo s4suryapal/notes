@@ -43,12 +43,12 @@ export default function NativeSplashScreen({ onAnimationFinish }: NativeSplashSc
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   animation: {
-    width: 300,
-    height: 300,
+    width: 400,
+    height: 400,
   },
 });
