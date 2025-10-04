@@ -17,6 +17,7 @@ react {
     // 📦 Bundle optimizations for smaller app size
     enableBundleCompression = true                   // Enable compression
     hermesFlags = ["-O", "-output-source-map"]       // Optimize Hermes bytecode
+
     // Use Expo CLI to bundle the app, this ensures the Metro config
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
@@ -89,9 +90,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.notesai.app'
+    namespace 'com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes'
     defaultConfig {
-        applicationId 'com.notesai.app'
+        applicationId 'com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -105,6 +106,10 @@ android {
             generatedDensities = []
         }
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -116,23 +121,34 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            // Disable minification and shrinking in debug builds for faster compilation
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
+            // 📦 For production builds with smaller app size, enable these:
             signingConfig signingConfigs.debug
-
-            // 📦 AGGRESSIVE SIZE OPTIMIZATION
             minifyEnabled true           // Enable R8 code shrinking
             shrinkResources true         // Enable resource shrinking
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
-            crunchPngs true              // Optimize PNG files
-
-            // Additional optimizations
-            debuggable false             // Remove debug info
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", "proguard-memory-optimize.pro"
             zipAlignEnabled true         // Optimize APK alignment
+
+            // Additional size optimizations
+            debuggable false             // Remove debug info
         }
     }
+
+    // 📦 MAJOR SIZE REDUCTION: Split APK by CPU architecture (reduces size by ~50%)
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false  // Don't generate universal APK
+            include "armeabi-v7a", "arm64-v8a"  // Only common architectures
+        }
+    }
+
     packagingOptions {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
@@ -161,21 +177,11 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
-        // 📦 Compress only necessary asset types
-        noCompress 'pak', 'dat', 'bin'
+        // 📦 Keep selective no-compress to avoid unnecessary APK bloat
+        noCompress 'pak', 'dat', 'bin'              // Only if these exist in assets
     }
 
-    // 📦 MAJOR SIZE REDUCTION: Split APK by CPU architecture (reduces size by ~50%)
-    splits {
-        abi {
-            reset()
-            enable true
-            universalApk false  // Don't generate universal APK
-            include "armeabi-v7a", "arm64-v8a"  // Only common architectures
-        }
-    }
-
-    // 📦 Bundle configuration for smaller app size (for AAB)
+    // 📦 Bundle configuration for smaller app size
     bundle {
         language {
             enableSplit = true      // Split by language
@@ -186,6 +192,15 @@ android {
         abi {
             enableSplit = true      // Split by CPU architecture
         }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
     }
 }
 
@@ -236,10 +251,4 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-
-    // 🚀 Android 12+ Splash Screen API for smooth splash animations
-    implementation("androidx.core:core-splashscreen:1.0.1")
-
-    // 📝 Google ML Kit Text Recognition (OCR)
-    implementation("com.google.mlkit:text-recognition:16.0.1")
 }

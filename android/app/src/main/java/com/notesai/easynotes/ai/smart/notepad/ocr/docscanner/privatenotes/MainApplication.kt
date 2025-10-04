@@ -1,4 +1,4 @@
-package com.notesai.app
+package com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes
 
 import android.app.Application
 import android.content.res.Configuration
@@ -15,6 +15,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
+import com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes.BuildConfig
 
 class MainApplication : Application(), ReactApplication {
 
