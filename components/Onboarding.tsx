@@ -193,42 +193,41 @@ export default function Onboarding({ visible, onComplete }: OnboardingProps) {
     }
   };
 
-  const renderFeatures = (features?: OnboardingSlide['features']) => {
-    if (!features) return null;
-
-    return (
-      <View style={styles.featuresContainer}>
-        {features.map((feature, index) => (
-          <View key={index} style={styles.featureCard}>
-            <View style={styles.featureIconContainer}>
-              {feature.icon}
-            </View>
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>{feature.title}</Text>
-              <Text style={styles.featureDescription}>{feature.description}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
   const renderSlide = (slideData: OnboardingSlide, index: number) => (
     <View key={slideData.id} style={styles.slide}>
-      <Animated.View style={[styles.slideContent, { opacity: fadeAnim }]}>
-        {/* Icon/Illustration */}
-        <View style={styles.iconContainer}>
-          {slideData.icon}
-        </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.slideScrollContent}
+      >
+        <Animated.View style={[styles.slideContent, { opacity: fadeAnim }]}>
+          {/* Icon/Illustration */}
+          <View style={styles.iconContainer}>
+            {slideData.icon}
+          </View>
 
-        {/* Title & Subtitle */}
-        <Text style={styles.title}>{slideData.title}</Text>
-        <Text style={styles.subtitle}>{slideData.subtitle}</Text>
-        <Text style={styles.description}>{slideData.description}</Text>
+          {/* Title & Subtitle */}
+          <Text style={styles.title}>{slideData.title}</Text>
+          <Text style={styles.subtitle}>{slideData.subtitle}</Text>
+          <Text style={styles.description}>{slideData.description}</Text>
 
-        {/* Features */}
-        {renderFeatures(slideData.features)}
-      </Animated.View>
+          {/* Features */}
+          {slideData.features && (
+            <View style={styles.featuresContainer}>
+              {slideData.features.map((feature, index) => (
+                <View key={index} style={styles.featureCard}>
+                  <View style={styles.featureIconContainer}>
+                    {feature.icon}
+                  </View>
+                  <View style={styles.featureContent}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>{feature.description}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+      </ScrollView>
     </View>
   );
 
@@ -321,8 +320,12 @@ const styles = StyleSheet.create({
   slide: {
     width,
     height: height - 200, // Leave space for footer
+  },
+  slideScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
   },
   slideContent: {
     alignItems: 'center',
