@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Note, Category, CreateNoteInput } from '@/types';
 import * as Storage from './storage';
+import { encryptText, decryptText } from './encryption';
+import { authenticateWithBiometrics } from './biometric';
 
 interface NotesContextType {
   notes: Note[];
@@ -17,6 +19,8 @@ interface NotesContextType {
   restoreNote: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   toggleArchive: (id: string) => Promise<void>;
+  toggleLock: (id: string) => Promise<{ success: boolean; error?: string }>;
+  unlockNote: (id: string) => Promise<{ success: boolean; decryptedBody?: string; error?: string }>;
   createCategory: (name: string, color: string, icon?: string | null) => Promise<Category>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<Category | null>;
   deleteCategory: (id: string) => Promise<void>;
@@ -112,6 +116,68 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     await refreshNotes();
   }, [refreshNotes]);
 
+  const toggleLock = useCallback(async (id: string) => {
+    try {
+      const note = await Storage.getNoteById(id);
+      if (!note) {
+        return { success: false, error: 'Note not found' };
+      }
+
+      if (note.is_locked) {
+        // Unlock: decrypt the body
+        const authResult = await authenticateWithBiometrics('Authenticate to unlock note');
+        if (!authResult.success) {
+          return { success: false, error: authResult.error };
+        }
+
+        const decryptedBody = await decryptText(note.body);
+        await Storage.updateNote(id, {
+          body: decryptedBody,
+          is_locked: false,
+        });
+        await refreshNotes();
+        return { success: true };
+      } else {
+        // Lock: encrypt the body
+        const authResult = await authenticateWithBiometrics('Authenticate to lock note');
+        if (!authResult.success) {
+          return { success: false, error: authResult.error };
+        }
+
+        const encryptedBody = await encryptText(note.body);
+        await Storage.updateNote(id, {
+          body: encryptedBody,
+          is_locked: true,
+        });
+        await refreshNotes();
+        return { success: true };
+      }
+    } catch (error: any) {
+      console.error('Error toggling lock:', error);
+      return { success: false, error: error?.message || 'Failed to toggle lock' };
+    }
+  }, [refreshNotes]);
+
+  const unlockNote = useCallback(async (id: string) => {
+    try {
+      const note = await Storage.getNoteById(id);
+      if (!note || !note.is_locked) {
+        return { success: false, error: 'Note not locked' };
+      }
+
+      const authResult = await authenticateWithBiometrics('Authenticate to view note');
+      if (!authResult.success) {
+        return { success: false, error: authResult.error };
+      }
+
+      const decryptedBody = await decryptText(note.body);
+      return { success: true, decryptedBody };
+    } catch (error: any) {
+      console.error('Error unlocking note:', error);
+      return { success: false, error: error?.message || 'Failed to unlock note' };
+    }
+  }, []);
+
   // Category operations
   const createCategory = useCallback(async (name: string, color: string, icon?: string | null) => {
     const category = await Storage.createCategory(name, color, icon);
@@ -155,6 +221,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     restoreNote,
     toggleFavorite,
     toggleArchive,
+    toggleLock,
+    unlockNote,
     createCategory,
     updateCategory,
     deleteCategory,

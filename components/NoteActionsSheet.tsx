@@ -3,9 +3,9 @@ import { useState, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system';
+import { Paths } from 'expo-file-system';
 import ViewShot from 'react-native-view-shot';
-import { Star, Archive, Share, Info, Eye, Clock, X, FolderInput, Trash2, FileText, FileDown, Image as ImageIcon, Copy, Printer, Music } from 'lucide-react-native';
+import { Star, Archive, Share, Info, Eye, Clock, X, FolderInput, Trash2, FileText, FileDown, Image as ImageIcon, Copy, Printer, Music, Lock, Unlock } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { Note, Category } from '@/types';
 
@@ -16,6 +16,7 @@ interface NoteActionsSheetProps {
   onFavorite: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onLock?: () => void;
   onDuplicate?: () => void;
   onShare?: () => void;
   onColorChange?: (color: string | null) => void;
@@ -52,6 +53,7 @@ export function NoteActionsSheet({
   onFavorite,
   onArchive,
   onDelete,
+  onLock,
   onShare,
   onMoveToCategory,
   categories = [],
@@ -147,12 +149,12 @@ export function NoteActionsSheet({
         : plainText;
 
       const fileName = `${note.title || 'Note'}.txt`;
-      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      const file = Paths.cache.createFile(fileName, 'text/plain');
 
-      await FileSystem.writeAsStringAsync(fileUri, content);
+      await file.write(content);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
+        await Sharing.shareAsync(file.uri, {
           mimeType: 'text/plain',
           dialogTitle: 'Export Note as Text',
         });
@@ -223,12 +225,12 @@ export function NoteActionsSheet({
       }
 
       const fileName = `${note.title || 'Note'}.md`;
-      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      const file = Paths.cache.createFile(fileName, 'text/markdown');
 
-      await FileSystem.writeAsStringAsync(fileUri, content);
+      await file.write(content);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
+        await Sharing.shareAsync(file.uri, {
           mimeType: 'text/markdown',
           dialogTitle: 'Export Note as Markdown',
         });
@@ -425,6 +427,15 @@ export function NoteActionsSheet({
       label: 'Archive',
       onPress: () => handleAction(onArchive, 'Archive'),
     },
+    ...(onLock
+      ? [
+          {
+            icon: note?.is_locked ? Unlock : Lock,
+            label: note?.is_locked ? 'Unlock' : 'Lock',
+            onPress: () => handleAction(onLock, note?.is_locked ? 'Unlock' : 'Lock'),
+          },
+        ]
+      : []),
     {
       icon: Trash2,
       label: 'Delete',

@@ -14,6 +14,7 @@ export interface Note {
   is_favorite: boolean;
   is_archived: boolean;
   is_deleted: boolean;
+  is_locked?: boolean;
   checklist_items?: ChecklistItem[];
   images?: string[]; // Array of base64 encoded images or URIs
   audio_recordings?: string[]; // Array of audio file URIs

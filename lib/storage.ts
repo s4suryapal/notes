@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MMKVStorage } from './mmkvStorage';
 import { Note, Category, CreateNoteInput } from '@/types';
 
 // Storage Keys
@@ -22,7 +22,7 @@ export function generateUUID(): string {
  */
 async function getNotesList(): Promise<string[]> {
   try {
-    const listStr = await AsyncStorage.getItem(KEYS.NOTES_LIST);
+    const listStr = MMKVStorage.getItem(KEYS.NOTES_LIST);
     return listStr ? JSON.parse(listStr) : [];
   } catch (error) {
     console.error('Error getting notes list:', error);
@@ -35,7 +35,7 @@ async function getNotesList(): Promise<string[]> {
  */
 async function saveNotesList(noteIds: string[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(KEYS.NOTES_LIST, JSON.stringify(noteIds));
+    MMKVStorage.setItem(KEYS.NOTES_LIST, JSON.stringify(noteIds));
   } catch (error) {
     console.error('Error saving notes list:', error);
     throw error;
@@ -51,7 +51,7 @@ export async function getAllNotes(): Promise<Note[]> {
     const notes: Note[] = [];
 
     for (const id of noteIds) {
-      const noteStr = await AsyncStorage.getItem(`${KEYS.NOTE_PREFIX}${id}`);
+      const noteStr = MMKVStorage.getItem(`${KEYS.NOTE_PREFIX}${id}`);
       if (noteStr) {
         notes.push(JSON.parse(noteStr));
       }
@@ -72,7 +72,7 @@ export async function getAllNotes(): Promise<Note[]> {
  */
 export async function getNoteById(id: string): Promise<Note | null> {
   try {
-    const noteStr = await AsyncStorage.getItem(`${KEYS.NOTE_PREFIX}${id}`);
+    const noteStr = MMKVStorage.getItem(`${KEYS.NOTE_PREFIX}${id}`);
     return noteStr ? JSON.parse(noteStr) : null;
   } catch (error) {
     console.error('Error getting note:', error);
@@ -90,6 +90,7 @@ export async function createNote({
   color = null,
   checklist_items,
   images,
+  audio_recordings,
 }: CreateNoteInput): Promise<Note> {
   try {
     const now = new Date().toISOString();
@@ -114,8 +115,12 @@ export async function createNote({
       note.images = images;
     }
 
+    if (audio_recordings?.length) {
+      note.audio_recordings = audio_recordings;
+    }
+
     // Save note
-    await AsyncStorage.setItem(
+    MMKVStorage.setItem(
       `${KEYS.NOTE_PREFIX}${note.id}`,
       JSON.stringify(note)
     );
@@ -151,7 +156,7 @@ export async function updateNote(
       updated_at: new Date().toISOString(),
     };
 
-    await AsyncStorage.setItem(
+    MMKVStorage.setItem(
       `${KEYS.NOTE_PREFIX}${id}`,
       JSON.stringify(updatedNote)
     );
@@ -172,10 +177,10 @@ export async function deleteNote(id: string): Promise<void> {
     await updateNote(id, { is_deleted: true });
 
     // Add to trash list with deletion date
-    const trashStr = await AsyncStorage.getItem(KEYS.TRASH_LIST);
+    const trashStr = MMKVStorage.getItem(KEYS.TRASH_LIST);
     const trash = trashStr ? JSON.parse(trashStr) : {};
     trash[id] = new Date().toISOString();
-    await AsyncStorage.setItem(KEYS.TRASH_LIST, JSON.stringify(trash));
+    MMKVStorage.setItem(KEYS.TRASH_LIST, JSON.stringify(trash));
   } catch (error) {
     console.error('Error deleting note:', error);
     throw error;
@@ -188,7 +193,7 @@ export async function deleteNote(id: string): Promise<void> {
 export async function permanentlyDeleteNote(id: string): Promise<void> {
   try {
     // Remove from storage
-    await AsyncStorage.removeItem(`${KEYS.NOTE_PREFIX}${id}`);
+    MMKVStorage.removeItem(`${KEYS.NOTE_PREFIX}${id}`);
 
     // Remove from notes list
     const noteIds = await getNotesList();
@@ -196,11 +201,11 @@ export async function permanentlyDeleteNote(id: string): Promise<void> {
     await saveNotesList(filtered);
 
     // Remove from trash list
-    const trashStr = await AsyncStorage.getItem(KEYS.TRASH_LIST);
+    const trashStr = MMKVStorage.getItem(KEYS.TRASH_LIST);
     if (trashStr) {
       const trash = JSON.parse(trashStr);
       delete trash[id];
-      await AsyncStorage.setItem(KEYS.TRASH_LIST, JSON.stringify(trash));
+      MMKVStorage.setItem(KEYS.TRASH_LIST, JSON.stringify(trash));
     }
   } catch (error) {
     console.error('Error permanently deleting note:', error);
@@ -216,11 +221,11 @@ export async function restoreNote(id: string): Promise<void> {
     await updateNote(id, { is_deleted: false });
 
     // Remove from trash list
-    const trashStr = await AsyncStorage.getItem(KEYS.TRASH_LIST);
+    const trashStr = MMKVStorage.getItem(KEYS.TRASH_LIST);
     if (trashStr) {
       const trash = JSON.parse(trashStr);
       delete trash[id];
-      await AsyncStorage.setItem(KEYS.TRASH_LIST, JSON.stringify(trash));
+      MMKVStorage.setItem(KEYS.TRASH_LIST, JSON.stringify(trash));
     }
   } catch (error) {
     console.error('Error restoring note:', error);
@@ -265,7 +270,7 @@ export async function toggleArchive(id: string): Promise<Note | null> {
  */
 export async function getAllCategories(): Promise<Category[]> {
   try {
-    const listStr = await AsyncStorage.getItem(KEYS.CATEGORIES_LIST);
+    const listStr = MMKVStorage.getItem(KEYS.CATEGORIES_LIST);
     const cats: Category[] = listStr ? JSON.parse(listStr) : [];
     // Always return sorted by order_index ascending
     return cats.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -298,7 +303,7 @@ export async function createCategory(
     };
 
     categories.push(category);
-    await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(categories));
+    MMKVStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(categories));
 
     return category;
   } catch (error) {
@@ -328,7 +333,7 @@ export async function updateCategory(
       updated_at: new Date().toISOString(),
     };
 
-    await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(categories));
+    MMKVStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(categories));
     return categories[index];
   } catch (error) {
     console.error('Error updating category:', error);
@@ -364,7 +369,7 @@ export async function updateCategoriesOrder(orderedIds: string[]): Promise<void>
       reordered.push({ ...cat, order_index: reordered.length + i, updated_at: now });
     });
 
-    await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(reordered));
+    MMKVStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(reordered));
   } catch (error) {
     console.error('Error updating categories order:', error);
     throw error;
@@ -384,7 +389,7 @@ export async function deleteCategory(id: string): Promise<void> {
       cat.order_index = index;
     });
 
-    await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(filtered));
+    MMKVStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(filtered));
 
     // Delete all notes in this category (soft delete - move to trash)
     const notes = await getAllNotes();
@@ -453,7 +458,7 @@ export async function initializeStorage(): Promise<void> {
  */
 export async function clearAllData(): Promise<void> {
   try {
-    await AsyncStorage.clear();
+    MMKVStorage.clear();
   } catch (error) {
     console.error('Error clearing data:', error);
     throw error;
@@ -499,7 +504,7 @@ export async function importAllData(data: {
 
     // Import categories
     if (data.categories) {
-      await AsyncStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(data.categories));
+      MMKVStorage.setItem(KEYS.CATEGORIES_LIST, JSON.stringify(data.categories));
     }
 
     // Import notes
@@ -507,7 +512,7 @@ export async function importAllData(data: {
       const noteIds: string[] = [];
 
       for (const note of data.notes) {
-        await AsyncStorage.setItem(`${KEYS.NOTE_PREFIX}${note.id}`, JSON.stringify(note));
+        MMKVStorage.setItem(`${KEYS.NOTE_PREFIX}${note.id}`, JSON.stringify(note));
         noteIds.push(note.id);
       }
 

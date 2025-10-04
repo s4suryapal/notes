@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Alert, R
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Search as SearchIcon, X, ArrowUpDown, Check } from 'lucide-react-native';
+import Fuse from 'fuse.js';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { SwipeableNoteCard, NoteActionsSheet, EmptyState } from '@/components';
 import { useNotes } from '@/lib/NotesContext';
@@ -36,16 +37,29 @@ export default function SearchScreen() {
     };
   }, [inputValue]);
 
+  // Fuse.js configuration for fuzzy search
+  const fuse = useMemo(() => {
+    const activeNotes = notes.filter((note) => !note.is_deleted && !note.is_archived);
+
+    return new Fuse(activeNotes, {
+      keys: [
+        { name: 'title', weight: 2 }, // Title is more important
+        { name: 'body', weight: 1 },
+      ],
+      threshold: 0.3, // 0 = exact match, 1 = match anything
+      includeScore: true,
+      includeMatches: true, // Include match positions for highlighting
+      minMatchCharLength: 2,
+      ignoreLocation: true, // Search entire string, not just beginning
+    });
+  }, [notes]);
+
   const searchResults = useMemo(() => {
     if (debouncedQuery.trim() === '') return [];
 
-    const filtered = notes.filter(
-      (note) =>
-        !note.is_deleted &&
-        !note.is_archived &&
-        (note.title.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-          note.body.toLowerCase().includes(debouncedQuery.toLowerCase()))
-    );
+    // Use Fuse.js for fuzzy search
+    const fuseResults = fuse.search(debouncedQuery);
+    const filtered = fuseResults.map((result) => result.item);
 
     // Sort results
     return filtered.sort((a, b) => {
@@ -63,7 +77,7 @@ export default function SearchScreen() {
         return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       }
     });
-  }, [notes, debouncedQuery, sortBy]);
+  }, [fuse, debouncedQuery, sortBy]);
 
   const handleSearch = (query: string) => {
     setInputValue(query);

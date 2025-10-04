@@ -26,7 +26,7 @@ export default function HomeScreen() {
     else navigation.openDrawer?.();
   };
   const insets = useSafeAreaInsets();
-  const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, refreshNotes, updateNote, createCategory } = useNotes();
+  const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, toggleLock, refreshNotes, updateNote, createCategory } = useNotes();
   const { showSuccess } = useToast();
 
   const [index, setIndex] = useState(0);
@@ -113,6 +113,18 @@ export default function HomeScreen() {
       const wasArchived = selectedNote.is_archived;
       await toggleArchive(selectedNote.id);
       showSuccess(wasArchived ? 'Note unarchived' : 'Note archived');
+    }
+  };
+
+  const handleLock = async () => {
+    if (selectedNote) {
+      const result = await toggleLock(selectedNote.id);
+      if (result.success) {
+        showSuccess(selectedNote.is_locked ? 'Note unlocked' : 'Note locked');
+        setShowActionsSheet(false);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to toggle lock');
+      }
     }
   };
 
@@ -632,6 +644,7 @@ export default function HomeScreen() {
         onClose={() => setShowActionsSheet(false)}
         onFavorite={handleFavorite}
         onArchive={handleArchive}
+        onLock={handleLock}
         onDelete={handleDelete}
         onColorChange={handleColorChange}
         onMoveToCategory={handleMoveToCategory}

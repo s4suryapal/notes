@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import { MoreVertical, Star, CheckCircle2, Circle } from 'lucide-react-native';
+import { MoreVertical, Star, CheckCircle2, Circle, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { HighlightedText } from './HighlightedText';
@@ -74,9 +74,14 @@ export const NoteCard = React.memo(function NoteCard({
               <Circle size={24} color={Colors.light.borderLight} />
             )
           ) : (
-            note.is_favorite && (
-              <Star size={16} color={Colors.light.secondary} fill={Colors.light.secondary} />
-            )
+            <View style={styles.headerIcons}>
+              {note.is_locked && (
+                <Lock size={14} color={Colors.light.textSecondary} />
+              )}
+              {note.is_favorite && (
+                <Star size={16} color={Colors.light.secondary} fill={Colors.light.secondary} />
+              )}
+            </View>
           )}
         </View>
         {note.title ? (
@@ -203,6 +208,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     minHeight: 20,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   title: {
     fontSize: Typography.fontSize.lg,

@@ -17,3 +17,4 @@ export { FormattedText } from './FormattedText';
 export type { ToastType } from './Toast';
 export { default as AudioPlayer } from './AudioPlayer';
 export { default as NativeSplashScreen } from './NativeSplashScreen';
+export { default as ChecklistItem } from './ChecklistItem';

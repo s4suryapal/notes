@@ -30,6 +30,7 @@ import {
   Check,
   FolderPlus,
   Mic,
+  CheckSquare,
 } from 'lucide-react-native';
 import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -37,9 +38,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
-import { BackgroundPicker, getBackgroundById, NoteActionsSheet } from '@/components';
+import { isBiometricAvailable } from '@/lib/biometric';
+import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem } from '@/components';
 import type { Background } from '@/components';
-import { Note } from '@/types';
+import { Note, ChecklistItem as ChecklistItemType } from '@/types';
 import AudioPlayer from '@/components/AudioPlayer';
 
 export default function NoteEditorScreen() {
@@ -54,6 +56,7 @@ export default function NoteEditorScreen() {
     deleteNote,
     toggleFavorite,
     toggleArchive,
+    unlockNote,
     createCategory,
   } = useNotes();
   const [title, setTitle] = useState('');
@@ -62,6 +65,8 @@ export default function NoteEditorScreen() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [audioRecordings, setAudioRecordings] = useState<string[]>([]);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItemType[]>([]);
+  const [showChecklist, setShowChecklist] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
@@ -124,21 +129,50 @@ export default function NoteEditorScreen() {
 
   // Load existing note
   useEffect(() => {
-    if (!isNewNote && id && !initialLoadDone.current) {
-      const note = notes.find((n) => n.id === id);
-      if (note) {
-        setTitle(note.title);
-        setBody(note.body);
-        setSelectedCategory(note.category_id);
-        setSelectedColor(note.color);
-        setImages(note.images || []);
-        setAudioRecordings(note.audio_recordings || []);
-        currentNoteId.current = note.id;
+    const loadNote = async () => {
+      if (!isNewNote && id && !initialLoadDone.current) {
+        const note = notes.find((n) => n.id === id);
+        if (note) {
+          setTitle(note.title);
+
+          // If note is locked, require authentication
+          if (note.is_locked) {
+            const result = await unlockNote(id as string);
+            if (result.success && result.decryptedBody) {
+              setBody(result.decryptedBody);
+            } else {
+              // Authentication failed, go back
+              Alert.alert(
+                'Authentication Failed',
+                result.error || 'Could not unlock note',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => router.back(),
+                  },
+                ]
+              );
+              return;
+            }
+          } else {
+            setBody(note.body);
+          }
+
+          setSelectedCategory(note.category_id);
+          setSelectedColor(note.color);
+          setImages(note.images || []);
+          setAudioRecordings(note.audio_recordings || []);
+          setChecklistItems(note.checklist_items || []);
+          setShowChecklist((note.checklist_items || []).length > 0);
+          currentNoteId.current = note.id;
+        }
+        setLoading(false);
+        initialLoadDone.current = true;
       }
-      setLoading(false);
-      initialLoadDone.current = true;
-    }
-  }, [id, isNewNote, notes]);
+    };
+
+    loadNote();
+  }, [id, isNewNote, notes, unlockNote]);
 
   const handleOpenActionsSheet = useCallback(() => {
     if (!currentNoteId.current) {
@@ -245,26 +279,30 @@ export default function NoteEditorScreen() {
     categoryId: string | null,
     color: string | null = null,
     imagesToSave?: string[],
-    audioToSave?: string[]
+    audioToSave?: string[],
+    checklistToSave?: ChecklistItemType[]
   ) => {
     const imageArray = imagesToSave !== undefined ? imagesToSave : images;
     const audioArray = audioToSave !== undefined ? audioToSave : audioRecordings;
+    const checklistArray = checklistToSave !== undefined ? checklistToSave : checklistItems;
     const hasTitleContent = titleText.trim().length > 0;
     const hasBodyContent = hasActualContent(bodyText);
     const hasImages = imageArray.length > 0;
     const hasAudio = audioArray.length > 0;
+    const hasChecklist = checklistArray.length > 0;
 
     console.log('saveNote called:', {
       hasTitleContent,
       hasBodyContent,
       hasImages,
       hasAudio,
+      hasChecklist,
       titleText,
       bodyLength: bodyText.length,
       currentNoteId: currentNoteId.current,
     });
 
-    if (!hasTitleContent && !hasBodyContent && !hasImages && !hasAudio) {
+    if (!hasTitleContent && !hasBodyContent && !hasImages && !hasAudio && !hasChecklist) {
       console.log('No content to save, skipping');
       return;
     }
@@ -280,6 +318,7 @@ export default function NoteEditorScreen() {
           color: color,
           images: imageArray.length > 0 ? imageArray : undefined,
           audio_recordings: audioArray.length > 0 ? audioArray : undefined,
+          checklist_items: checklistArray.length > 0 ? checklistArray : undefined,
         });
         console.log('Note updated successfully');
       } else {
@@ -292,6 +331,7 @@ export default function NoteEditorScreen() {
           color,
           images: imageArray.length > 0 ? imageArray : undefined,
           audio_recordings: audioArray.length > 0 ? audioArray : undefined,
+          checklist_items: checklistArray.length > 0 ? checklistArray : undefined,
         });
         currentNoteId.current = newNote.id;
         console.log('New note created:', newNote.id);
@@ -299,18 +339,82 @@ export default function NoteEditorScreen() {
     } catch (error) {
       console.error('Error saving note:', error);
     }
-  }, [createNote, updateNote, images, audioRecordings]);
+  }, [createNote, updateNote, images, audioRecordings, checklistItems]);
 
   // Debounced save
-  const debouncedSave = useCallback((titleText: string, bodyText: string, categoryId: string | null, color: string | null, imagesToSave?: string[], audioToSave?: string[]) => {
+  const debouncedSave = useCallback((titleText: string, bodyText: string, categoryId: string | null, color: string | null, imagesToSave?: string[], audioToSave?: string[], checklistToSave?: ChecklistItemType[]) => {
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
 
     saveTimeout.current = setTimeout(() => {
-      saveNote(titleText, bodyText, categoryId, color, imagesToSave, audioToSave);
+      saveNote(titleText, bodyText, categoryId, color, imagesToSave, audioToSave, checklistToSave);
     }, 300) as any; // 300ms debounce
   }, [saveNote]);
+
+  // Checklist handlers
+  const handleToggleChecklist = useCallback(() => {
+    if (showChecklist) {
+      // Hide checklist
+      setShowChecklist(false);
+      setChecklistItems([]);
+      // Save immediately to remove checklist
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current);
+      }
+      saveNote(title, body, selectedCategory, selectedColor, images, audioRecordings, []);
+    } else {
+      // Show checklist with one empty item
+      setShowChecklist(true);
+      const newItem: ChecklistItemType = {
+        id: Date.now().toString(),
+        text: '',
+        completed: false,
+        order: 0,
+      };
+      setChecklistItems([newItem]);
+    }
+  }, [showChecklist, title, body, selectedCategory, selectedColor, images, audioRecordings, saveNote]);
+
+  const handleAddChecklistItem = useCallback(() => {
+    const newItem: ChecklistItemType = {
+      id: Date.now().toString(),
+      text: '',
+      completed: false,
+      order: checklistItems.length,
+    };
+    const newItems = [...checklistItems, newItem];
+    setChecklistItems(newItems);
+    debouncedSave(title, body, selectedCategory, selectedColor, images, audioRecordings, newItems);
+  }, [checklistItems, title, body, selectedCategory, selectedColor, images, audioRecordings, debouncedSave]);
+
+  const handleToggleChecklistItem = useCallback((itemId: string) => {
+    const newItems = checklistItems.map((item) =>
+      item.id === itemId ? { ...item, completed: !item.completed } : item
+    );
+    setChecklistItems(newItems);
+    debouncedSave(title, body, selectedCategory, selectedColor, images, audioRecordings, newItems);
+  }, [checklistItems, title, body, selectedCategory, selectedColor, images, audioRecordings, debouncedSave]);
+
+  const handleChecklistItemTextChange = useCallback((itemId: string, text: string) => {
+    const newItems = checklistItems.map((item) =>
+      item.id === itemId ? { ...item, text } : item
+    );
+    setChecklistItems(newItems);
+    debouncedSave(title, body, selectedCategory, selectedColor, images, audioRecordings, newItems);
+  }, [checklistItems, title, body, selectedCategory, selectedColor, images, audioRecordings, debouncedSave]);
+
+  const handleDeleteChecklistItem = useCallback((itemId: string) => {
+    const newItems = checklistItems.filter((item) => item.id !== itemId);
+    setChecklistItems(newItems);
+
+    // If no items left, hide checklist
+    if (newItems.length === 0) {
+      setShowChecklist(false);
+    }
+
+    debouncedSave(title, body, selectedCategory, selectedColor, images, audioRecordings, newItems);
+  }, [checklistItems, title, body, selectedCategory, selectedColor, images, audioRecordings, debouncedSave]);
 
   // Handle text changes
   const handleTitleChange = (text: string) => {
@@ -724,6 +828,27 @@ export default function NoteEditorScreen() {
               multiline
             />
 
+            {/* Checklist */}
+            {showChecklist && (
+              <View style={styles.checklistContainer}>
+                {checklistItems.map((item, index) => (
+                  <ChecklistItem
+                    key={item.id}
+                    id={item.id}
+                    text={item.text}
+                    completed={item.completed}
+                    onToggle={handleToggleChecklistItem}
+                    onTextChange={handleChecklistItemTextChange}
+                    onDelete={handleDeleteChecklistItem}
+                    autoFocus={index === checklistItems.length - 1 && item.text === ''}
+                  />
+                ))}
+                <TouchableOpacity onPress={handleAddChecklistItem} style={styles.addChecklistItem}>
+                  <Text style={styles.addChecklistItemText}>+ Add item</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Rich Text Editor */}
             <RichEditor
               ref={richTextRef}
@@ -802,6 +927,7 @@ export default function NoteEditorScreen() {
               actions.setUnderline,
               actions.insertBulletsList,
               actions.insertOrderedList,
+              'checklist',
               'camera',
               'gallery',
               'microphone',
@@ -812,11 +938,13 @@ export default function NoteEditorScreen() {
               actions.redo,
             ]}
             iconMap={{
+              checklist: () => <CheckSquare size={20} color={showChecklist ? Colors.light.primary : Colors.light.text} />,
               camera: () => <Camera size={20} color={Colors.light.text} />,
               gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
               microphone: () => <Mic size={20} color={Colors.light.text} />,
               palette: () => <Palette size={20} color={paletteIconColor} />,
             }}
+            checklist={handleToggleChecklist}
             camera={handleCameraPress}
             gallery={handleImagePickerPress}
             microphone={() => setShowAudioRecorder(true)}
@@ -1330,5 +1458,17 @@ const styles = StyleSheet.create({
   recordHint: {
     fontSize: Typography.fontSize.sm,
     color: Colors.light.textSecondary,
+  },
+  checklistContainer: {
+    marginBottom: Spacing.base,
+  },
+  addChecklistItem: {
+    paddingVertical: Spacing.sm,
+    paddingLeft: 28, // Align with checkbox items
+  },
+  addChecklistItemText: {
+    fontSize: Typography.fontSize.base,
+    color: Colors.light.primary,
+    fontWeight: Typography.fontWeight.medium,
   },
 });
