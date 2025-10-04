@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ThemeProvider } from '@/lib/ThemeContext';
 import { NotesProvider } from '@/lib/NotesContext';
 import { ToastProvider } from '@/lib/ToastContext';
 import { ErrorBoundary, Onboarding } from '@/components';
@@ -110,22 +111,24 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <ToastProvider>
-          <NotesProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(drawer)" />
-              <Stack.Screen name="note/[id]" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
+        <ThemeProvider>
+          <ToastProvider>
+            <NotesProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(drawer)" />
+                <Stack.Screen name="note/[id]" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
 
-            {/* Onboarding Modal */}
-            <Onboarding
-              visible={showOnboarding}
-              onComplete={handleOnboardingComplete}
-            />
-          </NotesProvider>
-        </ToastProvider>
+              {/* Onboarding Modal */}
+              <Onboarding
+                visible={showOnboarding}
+                onComplete={handleOnboardingComplete}
+              />
+            </NotesProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );

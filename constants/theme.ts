@@ -175,3 +175,35 @@ export const Layout = {
   fabSize: 56,
   noteCardMinHeight: 120,
 };
+
+// Theme types
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type ColorScheme = 'light' | 'dark';
+
+export interface ThemeColors {
+  primary: string;
+  primaryDark: string;
+  primaryLight: string;
+  secondary: string;
+  accent: string;
+  warning: string;
+  background: string;
+  surface: string;
+  surfaceElevated: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  border: string;
+  borderLight: string;
+  shadow: string;
+  shadowDark: string;
+  success: string;
+  error: string;
+  info: string;
+  overlay: string;
+}
+
+// Helper to get colors for a specific scheme
+export const getThemeColors = (scheme: ColorScheme): ThemeColors => {
+  return Colors[scheme];
+};
