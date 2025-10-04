@@ -7,14 +7,16 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NotesProvider } from '@/lib/NotesContext';
 import { ToastProvider } from '@/lib/ToastContext';
-import { ErrorBoundary } from '@/components';
+import { ErrorBoundary, Onboarding } from '@/components';
 import { setupPersistentNotification, handleNotificationResponse } from '@/lib/persistentNotification';
+import { isOnboardingCompleted, completeOnboarding } from '@/lib/storage';
 import NativeSplashScreen from '@/components/NativeSplashScreen';
 
 export default function RootLayout() {
   useFrameworkReady();
   const router = useRouter();
   const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     // Setup persistent notification on app start (asks for permission if needed)
@@ -79,6 +81,28 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Check onboarding status after splash
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const completed = await isOnboardingCompleted();
+      if (!completed && !showSplash) {
+        // Show onboarding after splash screen finishes
+        setTimeout(() => {
+          setShowOnboarding(true);
+        }, 300);
+      }
+    };
+
+    if (!showSplash) {
+      checkOnboarding();
+    }
+  }, [showSplash]);
+
+  const handleOnboardingComplete = async () => {
+    await completeOnboarding();
+    setShowOnboarding(false);
+  };
+
   if (showSplash) {
     return <NativeSplashScreen onAnimationFinish={() => setShowSplash(false)} />;
   }
@@ -94,6 +118,12 @@ export default function RootLayout() {
               <Stack.Screen name="+not-found" />
             </Stack>
             <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
+
+            {/* Onboarding Modal */}
+            <Onboarding
+              visible={showOnboarding}
+              onComplete={handleOnboardingComplete}
+            />
           </NotesProvider>
         </ToastProvider>
       </GestureHandlerRootView>

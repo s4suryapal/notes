@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
-import { exportAllData, importAllData, clearAllData } from '@/lib/storage';
+import { exportAllData, importAllData, clearAllData, resetOnboarding } from '@/lib/storage';
 import { useToast } from '@/lib/ToastContext';
 import { setupPersistentNotification, removePersistentNotification } from '@/lib/persistentNotification';
 
@@ -170,6 +170,28 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleResetOnboarding = () => {
+    Alert.alert(
+      'Reset Onboarding',
+      'This will show the welcome tutorial again on next app launch. Useful for learning features.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          onPress: async () => {
+            try {
+              await resetOnboarding();
+              showSuccess('Onboarding reset! Restart app to see tutorial.');
+            } catch (error) {
+              console.error('Reset onboarding error:', error);
+              showError('Failed to reset onboarding');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleAbout = () => {
     Alert.alert(
       'About NotesAI',
@@ -251,6 +273,12 @@ export default function SettingsScreen() {
                   [{ text: 'OK' }]
                 );
               }}
+            />
+            <SettingsItem
+              icon={<Info size={24} color={Colors.light.accent} />}
+              label="Show Tutorial Again"
+              description="Reset onboarding to see welcome screens"
+              onPress={handleResetOnboarding}
             />
           </View>
         </View>

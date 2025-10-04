@@ -8,6 +8,7 @@ const KEYS = {
   CATEGORIES_LIST: 'categories:list',
   TRASH_LIST: 'trash:list',
   SETTINGS: 'settings',
+  ONBOARDING_COMPLETED: 'onboarding:completed',
 } as const;
 
 // UUID Generation (simple timestamp-based for now)
@@ -523,6 +524,45 @@ export async function importAllData(data: {
     await initializeStorage();
   } catch (error) {
     console.error('Error importing data:', error);
+    throw error;
+  }
+}
+
+// ==================== ONBOARDING ====================
+
+/**
+ * Check if onboarding has been completed
+ */
+export async function isOnboardingCompleted(): Promise<boolean> {
+  try {
+    const value = MMKVStorage.getItem(KEYS.ONBOARDING_COMPLETED);
+    return value === 'true';
+  } catch (error) {
+    console.error('Error checking onboarding:', error);
+    return false;
+  }
+}
+
+/**
+ * Mark onboarding as completed
+ */
+export async function completeOnboarding(): Promise<void> {
+  try {
+    MMKVStorage.setItem(KEYS.ONBOARDING_COMPLETED, 'true');
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reset onboarding (for testing)
+ */
+export async function resetOnboarding(): Promise<void> {
+  try {
+    MMKVStorage.removeItem(KEYS.ONBOARDING_COMPLETED);
+  } catch (error) {
+    console.error('Error resetting onboarding:', error);
     throw error;
   }
 }

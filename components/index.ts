@@ -23,3 +23,4 @@ export { default as DocumentScanner } from './DocumentScanner';
 export type { DocumentScanResult } from './DocumentScanner';
 export { default as TextExtractor } from './TextExtractor';
 export type { OCRResult } from './TextExtractor';
+export { default as Onboarding } from './Onboarding';
