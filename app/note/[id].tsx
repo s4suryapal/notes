@@ -14,6 +14,8 @@ import {
   Alert,
   Image,
   Keyboard,
+  Dimensions,
+  FlatList,
 } from 'react-native';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,14 +35,16 @@ import {
   CheckSquare,
   ScanText,
   FileText,
+  Trash2,
+  Crop,
 } from 'lucide-react-native';
 import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import ExpoImageCropTool from 'expo-image-crop-tool';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
-import { isBiometricAvailable } from '@/lib/biometric';
 import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, BackgroundPattern, DocumentScanner, TextExtractor } from '@/components';
 import type { Background, DocumentScanResult, OCRResult } from '@/components';
 import { Note, ChecklistItem as ChecklistItemType } from '@/types';
@@ -78,6 +82,9 @@ export default function NoteEditorScreen() {
   const [showDocumentScanner, setShowDocumentScanner] = useState(false);
   const [showTextExtractor, setShowTextExtractor] = useState(false);
   const [loading, setLoading] = useState(!isNewNote);
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
+  const [previewImageIndex, setPreviewImageIndex] = useState<number>(0);
+  const imagePreviewFlatListRef = useRef<FlatList>(null);
 
   const currentNoteId = useRef<string | null>(isNewNote ? null : id as string);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -702,6 +709,86 @@ export default function NoteEditorScreen() {
     );
   };
 
+  const handleImagePress = (index: number) => {
+    setPreviewImageIndex(index);
+    setPreviewImageUri(images[index]);
+    // Scroll to the selected image after modal opens
+    setTimeout(() => {
+      imagePreviewFlatListRef.current?.scrollToIndex({ index, animated: false });
+    }, 100);
+  };
+
+  const handleImageSwipe = (event: any) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / Dimensions.get('window').width);
+    setPreviewImageIndex(index);
+  };
+
+  const handleDeleteImageFromPreview = () => {
+    Alert.alert(
+      'Delete Image',
+      'Are you sure you want to delete this image?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const newImages = images.filter((_, i) => i !== previewImageIndex);
+            setImages(newImages);
+            debouncedSave(title, body, selectedCategory, selectedColor, newImages);
+            setPreviewImageUri(null);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCropImage = async () => {
+    try {
+      const imageUri = images[previewImageIndex];
+
+      // Open the crop tool with the current image
+      const result = await ExpoImageCropTool.openCropperAsync({
+        imageUri: imageUri,
+        aspectRatio: undefined, // Free crop - no aspect ratio constraint
+        shape: 'rectangle',
+        format: 'jpeg',
+        compressImageQuality: 0.9,
+      });
+
+      if (result && result.path) {
+        // Replace the image at the current index with the cropped version
+        const newImages = [...images];
+        newImages[previewImageIndex] = result.path;
+        setImages(newImages);
+        setPreviewImageUri(result.path);
+
+        // Update the FlatList to show the new image
+        setTimeout(() => {
+          imagePreviewFlatListRef.current?.scrollToIndex({
+            index: previewImageIndex,
+            animated: false
+          });
+        }, 100);
+
+        // Save immediately
+        if (saveTimeout.current) {
+          clearTimeout(saveTimeout.current);
+        }
+        saveNote(title, body, selectedCategory, selectedColor, newImages);
+      }
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      // User cancelled or error occurred - just ignore
+      if (error && typeof error === 'object' && 'message' in error) {
+        const message = (error as Error).message;
+        if (!message.includes('cancel')) {
+          Alert.alert('Error', 'Failed to crop image. Please try again.');
+        }
+      }
+    }
+  };
+
   // Document Scanner handler (no OCR, just clean scan)
   const handleDocumentScanComplete = (result: DocumentScanResult) => {
     // Add scanned image to images array
@@ -983,7 +1070,13 @@ export default function NoteEditorScreen() {
                 >
                   {images.map((imageUri, index) => (
                     <View key={index} style={styles.imageWrapper}>
-                      <Image source={{ uri: imageUri }} style={styles.noteImage} />
+                      <TouchableOpacity onPress={() => handleImagePress(index)} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: imageUri }}
+                          style={styles.noteImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.deleteImageButton}
                         onPress={() => handleDeleteImage(index)}
@@ -1208,6 +1301,73 @@ export default function NoteEditorScreen() {
         onClose={() => setShowTextExtractor(false)}
         onExtractComplete={handleTextExtractComplete}
       />
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={previewImageUri !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImageUri(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.imagePreviewOverlay}>
+          <View style={styles.imagePreviewHeader}>
+            <View style={styles.imagePreviewHeaderLeft}>
+              <TouchableOpacity
+                onPress={() => setPreviewImageUri(null)}
+                style={styles.imagePreviewBackButton}
+              >
+                <ArrowLeft size={24} color={Colors.light.surface} />
+              </TouchableOpacity>
+              {images.length > 1 && (
+                <Text style={styles.imagePreviewCounter}>
+                  {previewImageIndex + 1} / {images.length}
+                </Text>
+              )}
+            </View>
+            <View style={styles.imagePreviewHeaderRight}>
+              <TouchableOpacity
+                onPress={handleCropImage}
+                style={styles.imagePreviewCropButton}
+              >
+                <Crop size={22} color={Colors.light.surface} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDeleteImageFromPreview}
+                style={styles.imagePreviewDeleteButton}
+              >
+                <Trash2 size={22} color={Colors.light.surface} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <FlatList
+            ref={imagePreviewFlatListRef}
+            data={images}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleImageSwipe}
+            keyExtractor={(_item, index) => `image-preview-${index}`}
+            renderItem={({ item }) => (
+              <ScrollView
+                contentContainerStyle={styles.imagePreviewScrollContainer}
+                maximumZoomScale={3}
+                minimumZoomScale={1}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+                centerContent
+              >
+                <Image
+                  source={{ uri: item }}
+                  style={styles.imagePreviewImage}
+                  resizeMode="contain"
+                />
+              </ScrollView>
+            )}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1586,5 +1746,62 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.base,
     color: Colors.light.primary,
     fontWeight: Typography.fontWeight.medium,
+  },
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+  },
+  imagePreviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.base,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  imagePreviewHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  imagePreviewHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  imagePreviewBackButton: {
+    padding: Spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: BorderRadius.round,
+  },
+  imagePreviewCounter: {
+    color: Colors.light.surface,
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  imagePreviewCropButton: {
+    padding: Spacing.sm,
+    backgroundColor: 'rgba(74, 144, 226, 0.8)',
+    borderRadius: BorderRadius.round,
+  },
+  imagePreviewDeleteButton: {
+    padding: Spacing.sm,
+    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+    borderRadius: BorderRadius.round,
+  },
+  imagePreviewScrollContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: Dimensions.get('window').height,
+  },
+  imagePreviewImage: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   },
 });

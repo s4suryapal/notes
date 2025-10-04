@@ -235,23 +235,21 @@ export default function Onboarding({ visible, onComplete }: OnboardingProps) {
     <Modal
       visible={visible}
       animationType="fade"
-      statusBarTranslucent
       onRequestClose={handleSkip}
     >
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <LinearGradient
-          colors={slide.gradient as [string, string, ...string[]]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-
-        {/* Skip Button */}
-        {!isLastSlide && (
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipButtonText}>Skip</Text>
-          </TouchableOpacity>
-        )}
+      <LinearGradient
+        colors={slide.gradient as [string, string, ...string[]]}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+          {/* Skip Button */}
+          {!isLastSlide && (
+            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+              <Text style={styles.skipButtonText}>Skip</Text>
+            </TouchableOpacity>
+          )}
 
         {/* Slides */}
         <ScrollView
@@ -291,18 +289,22 @@ export default function Onboarding({ visible, onComplete }: OnboardingProps) {
             )}
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </LinearGradient>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
   skipButton: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
+    top: Spacing.md,
     right: Spacing.xl,
     zIndex: 10,
     paddingHorizontal: Spacing.lg,
