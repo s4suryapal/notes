@@ -55,6 +55,7 @@ export async function authenticateWithBiometrics(
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: reason,
       fallbackLabel: 'Use Passcode',
+      cancelLabel: 'Cancel',
       disableDeviceFallback: false,
     });
 
