@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,6 +8,7 @@ import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flat
 import { ArrowLeft, GripVertical, Lock, Unlock, Edit2, Trash2, Plus, Info } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
+import { ColorPicker } from '@/components';
 import type { Category } from '@/types';
 
 export default function ManageCategoriesScreen() {
@@ -17,7 +18,10 @@ export default function ManageCategoriesScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
+  const [categoryColor, setCategoryColor] = useState('#F44336');
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
+  const createInputRef = useRef<TextInput>(null);
+  const renameInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     setLocalCategories([...categories]);
@@ -59,7 +63,12 @@ export default function ManageCategoriesScreen() {
   const handleRename = (category: Category) => {
     setSelectedCategory(category);
     setCategoryName(category.name);
+    setCategoryColor(category.color);
     setShowRenameModal(true);
+    // Focus input after modal opens
+    setTimeout(() => {
+      renameInputRef.current?.focus();
+    }, 100);
   };
 
   const handleSaveRename = async () => {
@@ -69,9 +78,13 @@ export default function ManageCategoriesScreen() {
     }
 
     try {
-      await updateCategory(selectedCategory.id, { name: categoryName.trim() });
+      await updateCategory(selectedCategory.id, {
+        name: categoryName.trim(),
+        color: categoryColor
+      });
       setShowRenameModal(false);
       setCategoryName('');
+      setCategoryColor('#FF6B6B');
       setSelectedCategory(null);
     } catch (error) {
       Alert.alert('Error', 'Failed to rename category');
@@ -108,13 +121,10 @@ export default function ManageCategoriesScreen() {
     }
 
     try {
-      // Generate random color
-      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#FF85A1'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-      await createCategory(categoryName.trim(), randomColor);
+      await createCategory(categoryName.trim(), categoryColor);
       setShowCreateModal(false);
       setCategoryName('');
+      setCategoryColor('#FF6B6B');
       await loadNoteCounts(); // Reload counts after creation
     } catch (error) {
       Alert.alert('Error', 'Failed to create category');
@@ -184,7 +194,6 @@ export default function ManageCategoriesScreen() {
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Folders</Text>
-        <View style={{ width: 24 }} />
       </View>
 
       {/* Info Banner */}
@@ -229,20 +238,36 @@ export default function ManageCategoriesScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowRenameModal(false)}
+        onShow={() => {
+          setTimeout(() => {
+            renameInputRef.current?.blur();
+            renameInputRef.current?.focus();
+          }, 50);
+        }}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowRenameModal(false)}>
           <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Rename Category</Text>
+            <Text style={styles.modalTitle}>Edit Folder</Text>
             <TextInput
+              ref={renameInputRef}
               style={styles.input}
-              placeholder="Category name"
+              placeholder="Folder name"
               placeholderTextColor={Colors.light.textTertiary}
               value={categoryName}
               onChangeText={setCategoryName}
-              autoFocus
               returnKeyType="done"
               onSubmitEditing={handleSaveRename}
             />
+
+            {/* Color Picker */}
+            <View style={styles.colorPickerSection}>
+              <Text style={styles.colorPickerLabel}>Color</Text>
+              <ColorPicker
+                selectedColor={categoryColor}
+                onSelectColor={setCategoryColor}
+              />
+            </View>
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -270,26 +295,43 @@ export default function ManageCategoriesScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowCreateModal(false)}
+        onShow={() => {
+          setTimeout(() => {
+            createInputRef.current?.blur();
+            createInputRef.current?.focus();
+          }, 50);
+        }}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowCreateModal(false)}>
           <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>New Category</Text>
+            <Text style={styles.modalTitle}>New Folder</Text>
             <TextInput
+              ref={createInputRef}
               style={styles.input}
-              placeholder="Category name"
+              placeholder="Folder name"
               placeholderTextColor={Colors.light.textTertiary}
               value={categoryName}
               onChangeText={setCategoryName}
-              autoFocus
               returnKeyType="done"
               onSubmitEditing={handleCreateCategory}
             />
+
+            {/* Color Picker */}
+            <View style={styles.colorPickerSection}>
+              <Text style={styles.colorPickerLabel}>Color</Text>
+              <ColorPicker
+                selectedColor={categoryColor}
+                onSelectColor={setCategoryColor}
+              />
+            </View>
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
                 onPress={() => {
                   setShowCreateModal(false);
                   setCategoryName('');
+                  setCategoryColor('#F44336');
                 }}
               >
                 <Text style={styles.modalButtonCancelText}>Cancel</Text>
@@ -316,7 +358,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,
@@ -357,7 +398,6 @@ const styles = StyleSheet.create({
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     backgroundColor: Colors.light.surface,
@@ -486,5 +526,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.light.surface,
+  },
+  colorPickerSection: {
+    marginBottom: Spacing.lg,
+  },
+  colorPickerLabel: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.light.textSecondary,
+    marginBottom: Spacing.sm,
   },
 });

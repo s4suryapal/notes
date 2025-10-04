@@ -93,7 +93,6 @@ export default function CalendarScreen() {
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Calendar</Text>
-        <View style={{ width: 24 }} />
       </View>
 
       {/* Calendar Header */}
@@ -192,7 +191,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,
@@ -210,7 +208,7 @@ const styles = StyleSheet.create({
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,

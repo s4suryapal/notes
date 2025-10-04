@@ -12,7 +12,6 @@ export default function PremiumScreen() {
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Premium</Text>
-        <View style={{ width: 24 }} />
       </View>
       <View style={styles.content}>
         <View style={styles.card}>
@@ -33,7 +32,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,

@@ -12,7 +12,6 @@ export default function FavoritesScreen() {
           <ArrowLeft size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Favorites</Text>
-        <View style={{ width: 24 }} />
       </View>
       <View style={styles.body}>
         <Text style={styles.text}>Your favorite notes will be shown here.</Text>
@@ -26,7 +25,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,

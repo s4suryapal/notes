@@ -5,6 +5,13 @@ export interface ChecklistItem {
   order: number;
 }
 
+export interface OCRMetadata {
+  text: string;
+  imageUri: string;
+  confidence?: number;
+  timestamp: string;
+}
+
 export interface Note {
   id: string;
   title: string;
@@ -18,6 +25,7 @@ export interface Note {
   checklist_items?: ChecklistItem[];
   images?: string[]; // Array of base64 encoded images or URIs
   audio_recordings?: string[]; // Array of audio file URIs
+  ocr_data?: OCRMetadata[]; // Array of OCR scanned data
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +38,7 @@ export interface CreateNoteInput {
   checklist_items?: ChecklistItem[];
   images?: string[];
   audio_recordings?: string[];
+  ocr_data?: OCRMetadata[];
 }
 
 export interface Category {

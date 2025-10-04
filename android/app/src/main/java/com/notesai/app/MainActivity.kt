@@ -72,6 +72,12 @@ class MainActivity : ReactActivity() {
       PersistentNotificationService.ACTION_TEXT_NOTE -> {
         sendEventToJS("onNotificationAction", "text")
       }
+      PersistentNotificationService.ACTION_CHECKLIST -> {
+        sendEventToJS("onNotificationAction", "checklist")
+      }
+      PersistentNotificationService.ACTION_DRAWING -> {
+        sendEventToJS("onNotificationAction", "drawing")
+      }
       PersistentNotificationService.ACTION_PHOTO_NOTE -> {
         sendEventToJS("onNotificationAction", "photo")
       }
@@ -82,9 +88,17 @@ class MainActivity : ReactActivity() {
   }
 
   private fun sendEventToJS(eventName: String, data: String) {
-    reactInstanceManager.currentReactContext
-      ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      ?.emit(eventName, data)
+    try {
+      // Check if React Native is initialized before sending events
+      val reactInstanceManager = reactInstanceManager ?: return
+      reactInstanceManager.currentReactContext
+        ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        ?.emit(eventName, data)
+    } catch (e: Exception) {
+      // React Native not ready yet, ignore the event
+      // This can happen when app is launched via notification
+      android.util.Log.w("MainActivity", "Cannot send event to JS: ${e.message}")
+    }
   }
 
   override fun getMainComponentName(): String = "main"

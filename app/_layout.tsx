@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
+import { DeviceEventEmitter, Platform } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NotesProvider } from '@/lib/NotesContext';
@@ -45,8 +46,36 @@ export default function RootLayout() {
       }
     });
 
+    // Listen for native Android notification actions
+    let nativeSubscription: any;
+    if (Platform.OS === 'android') {
+      nativeSubscription = DeviceEventEmitter.addListener('onNotificationAction', (actionType: string) => {
+        console.log('Native notification action:', actionType);
+        switch (actionType) {
+          case 'text':
+            router.push('/note/new');
+            break;
+          case 'checklist':
+            router.push('/note/new?mode=checklist');
+            break;
+          case 'drawing':
+            router.push('/note/new?mode=drawing');
+            break;
+          case 'photo':
+            router.push('/note/new?mode=photo');
+            break;
+          case 'audio':
+            router.push('/note/new?mode=audio');
+            break;
+        }
+      });
+    }
+
     return () => {
       subscription.remove();
+      if (nativeSubscription) {
+        nativeSubscription.remove();
+      }
     };
   }, []);
 

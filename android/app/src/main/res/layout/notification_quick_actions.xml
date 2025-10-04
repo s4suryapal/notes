@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:gravity="center_vertical"
+    android:background="#FFFFFF">
+
+    <!-- App Icon -->
+    <ImageView
+        android:id="@+id/app_icon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="App Icon" />
+
+    <!-- Note Button -->
+    <ImageView
+        android:id="@+id/btn_note"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="2dp"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_menu_edit"
+        android:contentDescription="Note"
+        android:scaleType="fitCenter" />
+
+    <!-- Checklist Button -->
+    <ImageView
+        android:id="@+id/btn_checklist"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="2dp"
+        android:padding="8dp"
+        android:src="@android:drawable/checkbox_on_background"
+        android:contentDescription="Checklist"
+        android:scaleType="fitCenter" />
+
+    <!-- Image Button -->
+    <ImageView
+        android:id="@+id/btn_image"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="2dp"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_menu_camera"
+        android:contentDescription="Photo"
+        android:scaleType="fitCenter" />
+
+    <!-- Audio Button -->
+    <ImageView
+        android:id="@+id/btn_audio"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="2dp"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_btn_speak_now"
+        android:contentDescription="Audio"
+        android:scaleType="fitCenter" />
+
+    <!-- Spacer -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+    <!-- Collapse/Expand Button -->
+    <ImageView
+        android:id="@+id/btn_collapse"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="8dp"
+        android:src="@android:drawable/arrow_up_float"
+        android:contentDescription="Collapse"
+        android:scaleType="fitCenter" />
+
+</LinearLayout>

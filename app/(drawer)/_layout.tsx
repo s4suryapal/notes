@@ -16,6 +16,7 @@ import {
   Layout,
   HelpCircle,
   Users,
+  Folder,
 } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { router } from 'expo-router';
@@ -68,6 +69,11 @@ function CustomDrawerContent() {
 
         {/* Main Menu */}
         <View style={styles.menuSection}>
+          <DrawerItem
+            icon={<Folder size={20} color="#FFD54F" />}
+            label="Folders"
+            onPress={() => router.push('/folders')}
+          />
           <DrawerItem
             icon={<Calendar size={20} color={Colors.light.primary} />}
             label="Calendar"

@@ -89,7 +89,6 @@ export default function ArchiveScreen() {
             {archivedNotes.length} {archivedNotes.length === 1 ? 'note' : 'notes'}
           </Text>
         </View>
-        <View style={{ width: 24 }} />
       </View>
 
       {archivedNotes.length === 0 ? (
@@ -132,7 +131,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.surface,

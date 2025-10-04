@@ -31,6 +31,8 @@ import {
   FolderPlus,
   Mic,
   CheckSquare,
+  ScanText,
+  FileText,
 } from 'lucide-react-native';
 import * as ExpoCamera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,13 +41,13 @@ import { Audio } from 'expo-av';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
 import { isBiometricAvailable } from '@/lib/biometric';
-import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem } from '@/components';
-import type { Background } from '@/components';
+import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, BackgroundPattern, DocumentScanner, TextExtractor } from '@/components';
+import type { Background, DocumentScanResult, OCRResult } from '@/components';
 import { Note, ChecklistItem as ChecklistItemType } from '@/types';
 import AudioPlayer from '@/components/AudioPlayer';
 
 export default function NoteEditorScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, mode } = useLocalSearchParams();
   const isNewNote = id === 'new';
 
   const {
@@ -73,6 +75,8 @@ export default function NoteEditorScreen() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [showDocumentScanner, setShowDocumentScanner] = useState(false);
+  const [showTextExtractor, setShowTextExtractor] = useState(false);
   const [loading, setLoading] = useState(!isNewNote);
 
   const currentNoteId = useRef<string | null>(isNewNote ? null : id as string);
@@ -168,11 +172,35 @@ export default function NoteEditorScreen() {
         }
         setLoading(false);
         initialLoadDone.current = true;
+
+        // Focus the rich editor after loading
+        setTimeout(() => {
+          richTextRef.current?.focusContentEditor();
+        }, 300);
+      } else if (isNewNote && !initialLoadDone.current) {
+        // For new notes, focus the rich editor after a short delay
+        setLoading(false);
+        initialLoadDone.current = true;
+
+        // Handle mode parameter for notification actions
+        setTimeout(() => {
+          if (mode === 'photo') {
+            handleImagePickerPress();
+          } else if (mode === 'audio') {
+            setShowAudioRecorder(true);
+          } else if (mode === 'checklist') {
+            handleToggleChecklist();
+            // Don't focus editor if checklist mode
+          } else {
+            // Default: focus the rich editor
+            richTextRef.current?.focusContentEditor();
+          }
+        }, 300);
       }
     };
 
     loadNote();
-  }, [id, isNewNote, notes, unlockNote]);
+  }, [id, isNewNote, notes, unlockNote, mode]);
 
   const handleOpenActionsSheet = useCallback(() => {
     if (!currentNoteId.current) {
@@ -533,6 +561,11 @@ export default function NoteEditorScreen() {
         const newRecordings = [...audioRecordings, uri];
         setAudioRecordings(newRecordings);
         debouncedSave(title, body, selectedCategory, selectedColor, images, newRecordings);
+
+        // Auto-scroll to audio section after a short delay
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 300);
       }
 
       setRecording(null);
@@ -600,6 +633,11 @@ export default function NoteEditorScreen() {
         const newImages = [...images, result.assets[0].uri];
         setImages(newImages);
         debouncedSave(title, body, selectedCategory, selectedColor, newImages);
+
+        // Auto-scroll to images section after a short delay
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 300);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -633,6 +671,11 @@ export default function NoteEditorScreen() {
         const newImages = [...images, result.assets[0].uri];
         setImages(newImages);
         debouncedSave(title, body, selectedCategory, selectedColor, newImages);
+
+        // Auto-scroll to images section after a short delay
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 300);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -657,6 +700,48 @@ export default function NoteEditorScreen() {
         },
       ]
     );
+  };
+
+  // Document Scanner handler (no OCR, just clean scan)
+  const handleDocumentScanComplete = (result: DocumentScanResult) => {
+    // Add scanned image to images array
+    const newImages = [...images, result.imageUri];
+    setImages(newImages);
+
+    // Save immediately
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+    }
+    saveNote(title, body, selectedCategory, selectedColor, newImages);
+
+    // Auto-scroll to bottom to show new content
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 300);
+  };
+
+  // Text Extractor handler (OCR)
+  const handleTextExtractComplete = (result: OCRResult) => {
+    // Add scanned image to images array
+    const newImages = [...images, result.imageUri];
+    setImages(newImages);
+
+    // Insert extracted text into the body
+    const extractedText = `\n\n<p><strong>Extracted Text:</strong></p>\n<p>${result.text.replace(/\n/g, '<br>')}</p>`;
+    const newBody = body + extractedText;
+    setBody(newBody);
+    richTextRef.current?.setContentHTML(newBody);
+
+    // Save immediately
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+    }
+    saveNote(title, newBody, selectedCategory, selectedColor, newImages);
+
+    // Auto-scroll to bottom to show new content
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 300);
   };
 
   const selectedCategoryData = categories.find((c) => c.id === selectedCategory);
@@ -692,16 +777,24 @@ export default function NoteEditorScreen() {
     }
 
     if (currentBackground.type === 'pattern') {
+      const svgPatterns = ['grid', 'dotgrid', 'lines', 'checks', 'hexagon', 'isometric', 'music'];
+      const emojiPatterns: Record<string, string> = {
+        floral: '🌸',
+        strawberry: '🍓',
+        leaf: '🍃',
+        tree: '🌳',
+        cloud: '☁️',
+        star: '⭐',
+        heart: '💕',
+      };
+
       return (
         <View style={[styles.backgroundWrapper, { backgroundColor: currentBackground.value || Colors.light.background }]}>
-          {currentBackground.pattern === 'grid' && (
-            <View style={styles.gridPatternOverlay} />
+          {currentBackground.pattern && svgPatterns.includes(currentBackground.pattern) && (
+            <BackgroundPattern pattern={currentBackground.pattern} />
           )}
-          {currentBackground.pattern === 'floral' && (
-            <Text style={styles.patternEmojiOverlay}>🌸</Text>
-          )}
-          {currentBackground.pattern === 'strawberry' && (
-            <Text style={styles.patternEmojiOverlay}>🍓</Text>
+          {currentBackground.pattern && emojiPatterns[currentBackground.pattern] && (
+            <Text style={styles.patternEmojiOverlay}>{emojiPatterns[currentBackground.pattern]}</Text>
           )}
           {children}
         </View>
@@ -717,7 +810,7 @@ export default function NoteEditorScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -850,33 +943,35 @@ export default function NoteEditorScreen() {
             )}
 
             {/* Rich Text Editor */}
-            <RichEditor
-              ref={richTextRef}
-              style={styles.richEditor}
-              placeholder="Note here..."
-              initialContentHTML={body}
-              onChange={handleBodyChange}
-              onCursorPosition={(scrollY) => {
-                scrollRef.current?.scrollTo({ y: scrollY - 30, animated: true });
-              }}
-              editorStyle={{
-                backgroundColor: 'transparent',
-                placeholderColor: Colors.light.textTertiary,
-                color: Colors.light.text,
-                contentCSSText: `
-                  font-size: ${Typography.fontSize.md}px;
-                  line-height: ${Typography.fontSize.md * Typography.lineHeight.normal}px;
-                  padding: 0;
-                  min-height: 200px;
-                  -webkit-user-select: text;
-                  user-select: text;
-                  -webkit-touch-callout: default;
-                `,
-              }}
-              useContainer={true}
-              initialFocus={false}
-              pasteAsPlainText={false}
-            />
+            {!loading && (
+              <RichEditor
+                ref={richTextRef}
+                style={styles.richEditor}
+                placeholder="Note here..."
+                initialContentHTML={body}
+                onChange={handleBodyChange}
+                onCursorPosition={(scrollY) => {
+                  scrollRef.current?.scrollTo({ y: scrollY - 30, animated: true });
+                }}
+                editorStyle={{
+                  backgroundColor: 'transparent',
+                  placeholderColor: Colors.light.textTertiary,
+                  color: Colors.light.text,
+                  contentCSSText: `
+                    font-size: ${Typography.fontSize.md}px;
+                    line-height: ${Typography.fontSize.md * Typography.lineHeight.normal}px;
+                    padding: 0;
+                    min-height: 200px;
+                    -webkit-user-select: text;
+                    user-select: text;
+                    -webkit-touch-callout: default;
+                  `,
+                }}
+                useContainer={true}
+                initialFocus={false}
+                pasteAsPlainText={false}
+              />
+            )}
 
             {/* Images Display */}
             {images.length > 0 && (
@@ -928,6 +1023,8 @@ export default function NoteEditorScreen() {
               actions.insertBulletsList,
               actions.insertOrderedList,
               'checklist',
+              'scanner',
+              'ocr',
               'camera',
               'gallery',
               'microphone',
@@ -939,12 +1036,16 @@ export default function NoteEditorScreen() {
             ]}
             iconMap={{
               checklist: () => <CheckSquare size={20} color={showChecklist ? Colors.light.primary : Colors.light.text} />,
+              scanner: () => <ScanText size={20} color={Colors.light.text} />,
+              ocr: () => <FileText size={20} color={Colors.light.text} />,
               camera: () => <Camera size={20} color={Colors.light.text} />,
               gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
               microphone: () => <Mic size={20} color={Colors.light.text} />,
               palette: () => <Palette size={20} color={paletteIconColor} />,
             }}
             checklist={handleToggleChecklist}
+            scanner={() => setShowDocumentScanner(true)}
+            ocr={() => setShowTextExtractor(true)}
             camera={handleCameraPress}
             gallery={handleImagePickerPress}
             microphone={() => setShowAudioRecorder(true)}
@@ -1093,6 +1194,20 @@ export default function NoteEditorScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Document Scanner Modal */}
+      <DocumentScanner
+        visible={showDocumentScanner}
+        onClose={() => setShowDocumentScanner(false)}
+        onScanComplete={handleDocumentScanComplete}
+      />
+
+      {/* Text Extractor Modal (OCR) */}
+      <TextExtractor
+        visible={showTextExtractor}
+        onClose={() => setShowTextExtractor(false)}
+        onExtractComplete={handleTextExtractComplete}
+      />
     </SafeAreaView>
   );
 }
@@ -1287,6 +1402,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: Spacing.base,
+    paddingBottom: 80, // Extra padding to prevent content from being hidden behind toolbar
   },
   titleInput: {
     fontSize: Typography.fontSize.xxl,

@@ -30,31 +30,38 @@ async function getEncryptionKey(): Promise<string> {
 
 /**
  * Base64 encode using btoa (React Native compatible)
+ * Handles Unicode/UTF-8 strings properly
  */
 function base64Encode(str: string): string {
   try {
-    // Convert string to array of char codes, then to base64
-    const bytes = new Uint8Array(str.length);
-    for (let i = 0; i < str.length; i++) {
-      bytes[i] = str.charCodeAt(i);
-    }
-    // Use btoa if available, otherwise manual conversion
+    // Convert string to UTF-8 bytes
+    const encoder = encodeURIComponent(str);
+    // Replace URL encoding with characters
+    const utf8Str = encoder.replace(/%([0-9A-F]{2})/g, (_, p1) => {
+      return String.fromCharCode(parseInt(p1, 16));
+    });
+
+    // Use btoa if available
     if (typeof btoa !== 'undefined') {
-      return btoa(String.fromCharCode.apply(null, Array.from(bytes)));
+      return btoa(utf8Str);
     }
+
     // Fallback: manual base64 encoding
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     let result = '';
     let i = 0;
-    while (i < bytes.length) {
-      const a = bytes[i++];
-      const b = i < bytes.length ? bytes[i++] : 0;
-      const c = i < bytes.length ? bytes[i++] : 0;
+
+    while (i < utf8Str.length) {
+      const a = utf8Str.charCodeAt(i++);
+      const b = i < utf8Str.length ? utf8Str.charCodeAt(i++) : 0;
+      const c = i < utf8Str.length ? utf8Str.charCodeAt(i++) : 0;
+
       const bitmap = (a << 16) | (b << 8) | c;
+
       result += chars[(bitmap >> 18) & 63];
       result += chars[(bitmap >> 12) & 63];
-      result += i > bytes.length + 1 ? '=' : chars[(bitmap >> 6) & 63];
-      result += i > bytes.length ? '=' : chars[bitmap & 63];
+      result += i > utf8Str.length + 1 ? '=' : chars[(bitmap >> 6) & 63];
+      result += i > utf8Str.length ? '=' : chars[bitmap & 63];
     }
     return result;
   } catch (error) {
@@ -65,29 +72,45 @@ function base64Encode(str: string): string {
 
 /**
  * Base64 decode using atob (React Native compatible)
+ * Handles Unicode/UTF-8 strings properly
  */
 function base64Decode(str: string): string {
   try {
+    let decoded: string;
+
     // Use atob if available
     if (typeof atob !== 'undefined') {
-      const decoded = atob(str);
-      return decoded;
+      decoded = atob(str);
+    } else {
+      // Fallback: manual base64 decoding
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let result = '';
+      const cleanStr = str.replace(/[^A-Za-z0-9+/=]/g, '');
+
+      for (let i = 0; i < cleanStr.length;) {
+        const a = chars.indexOf(cleanStr.charAt(i++));
+        const b = chars.indexOf(cleanStr.charAt(i++));
+        const c = chars.indexOf(cleanStr.charAt(i++));
+        const d = chars.indexOf(cleanStr.charAt(i++));
+
+        const bitmap = (a << 18) | (b << 12) | (c << 6) | d;
+
+        result += String.fromCharCode((bitmap >> 16) & 255);
+        if (c !== 64) result += String.fromCharCode((bitmap >> 8) & 255);
+        if (d !== 64) result += String.fromCharCode(bitmap & 255);
+      }
+      decoded = result;
     }
-    // Fallback: manual base64 decoding
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    str = str.replace(/[^A-Za-z0-9+/=]/g, '');
-    for (let i = 0; i < str.length;) {
-      const a = chars.indexOf(str.charAt(i++));
-      const b = chars.indexOf(str.charAt(i++));
-      const c = chars.indexOf(str.charAt(i++));
-      const d = chars.indexOf(str.charAt(i++));
-      const bitmap = (a << 18) | (b << 12) | (c << 6) | d;
-      result += String.fromCharCode((bitmap >> 16) & 255);
-      if (c !== 64) result += String.fromCharCode((bitmap >> 8) & 255);
-      if (d !== 64) result += String.fromCharCode(bitmap & 255);
+
+    // Convert from UTF-8 bytes back to Unicode string
+    // Convert each byte to percent encoding manually
+    let percentEncoded = '';
+    for (let i = 0; i < decoded.length; i++) {
+      const byte = decoded.charCodeAt(i);
+      percentEncoded += '%' + byte.toString(16).padStart(2, '0').toUpperCase();
     }
-    return result;
+
+    return decodeURIComponent(percentEncoded);
   } catch (error) {
     console.error('Error in base64Decode:', error);
     throw new Error('Failed to decode from base64');
@@ -111,9 +134,17 @@ function xorEncryptDecrypt(text: string, key: string): string {
  */
 export async function encryptText(text: string): Promise<string> {
   try {
-    if (!text) {
-      throw new Error('Cannot encrypt empty text');
+    // Allow empty strings - they're valid content
+    // Only reject null or undefined
+    if (text === null || text === undefined) {
+      throw new Error('Cannot encrypt null or undefined text');
     }
+
+    // Handle empty string - just return a marker to indicate it was encrypted
+    if (text === '') {
+      return base64Encode('__EMPTY__');
+    }
+
     const key = await getEncryptionKey();
     const encrypted = xorEncryptDecrypt(text, key);
     // Convert to base64 for safe storage
@@ -129,12 +160,24 @@ export async function encryptText(text: string): Promise<string> {
  */
 export async function decryptText(encryptedText: string): Promise<string> {
   try {
-    if (!encryptedText) {
-      throw new Error('Cannot decrypt empty text');
+    if (encryptedText === null || encryptedText === undefined) {
+      throw new Error('Cannot decrypt null or undefined text');
     }
+
+    // Handle empty encrypted text
+    if (encryptedText === '') {
+      return '';
+    }
+
     const key = await getEncryptionKey();
     // Decode from base64
     const encrypted = base64Decode(encryptedText);
+
+    // Check if this was an empty string marker
+    if (encrypted === '__EMPTY__') {
+      return '';
+    }
+
     return xorEncryptDecrypt(encrypted, key);
   } catch (error) {
     console.error('Error decrypting text:', error);

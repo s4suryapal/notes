@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import { MoreVertical, Star, CheckCircle2, Circle, Lock } from 'lucide-react-native';
+import { MoreVertical, Star, CheckCircle2, Circle, Lock, Image as ImageIcon, Mic, CheckSquare } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { HighlightedText } from './HighlightedText';
@@ -60,81 +60,148 @@ export const NoteCard = React.memo(function NoteCard({
 
   const background = useMemo(() => getBackgroundById(note.color), [note.color]);
 
-  // Strip HTML for preview
-  const plainTextBody = useMemo(() => stripHtml(note.body || ''), [note.body]);
+  // Strip HTML for preview - don't process body if note is locked
+  const plainTextBody = useMemo(() => {
+    if (note.is_locked) return '';
+    return stripHtml(note.body || '');
+  }, [note.body, note.is_locked]);
+
+  // Calculate checklist progress
+  const checklistProgress = useMemo(() => {
+    if (!note.checklist_items || note.checklist_items.length === 0) return null;
+    const completed = note.checklist_items.filter(item => item.completed).length;
+    const total = note.checklist_items.length;
+    return { completed, total };
+  }, [note.checklist_items]);
 
   const renderCardContent = () => (
     <>
       <View style={styles.content}>
-        <View style={styles.header}>
-          {selectionMode ? (
-            isSelected ? (
-              <CheckCircle2 size={24} color={Colors.light.primary} fill={Colors.light.primary} />
+        {/* Only render header if needed */}
+        {(selectionMode || note.is_favorite) && (
+          <View style={styles.header}>
+            {selectionMode ? (
+              isSelected ? (
+                <CheckCircle2 size={24} color={Colors.light.primary} fill={Colors.light.primary} />
+              ) : (
+                <Circle size={24} color={Colors.light.borderLight} />
+              )
             ) : (
-              <Circle size={24} color={Colors.light.borderLight} />
-            )
-          ) : (
-            <View style={styles.headerIcons}>
-              {note.is_locked && (
-                <Lock size={14} color={Colors.light.textSecondary} />
-              )}
-              {note.is_favorite && (
-                <Star size={16} color={Colors.light.secondary} fill={Colors.light.secondary} />
-              )}
-            </View>
-          )}
-        </View>
-        {note.title ? (
-          searchQuery ? (
-            <HighlightedText
-              text={note.title}
-              searchQuery={searchQuery}
-              style={styles.title}
-              numberOfLines={2}
-            />
-          ) : (
-            <Text style={styles.title} numberOfLines={2}>
-              {note.title}
-            </Text>
-          )
-        ) : null}
-        {note.checklist_items && note.checklist_items.length > 0 ? (
-          <View style={styles.checklistPreview}>
-            {note.checklist_items.slice(0, 3).map((item) => (
-              <View key={item.id} style={styles.checklistItem}>
-                <Text style={styles.checklistIcon}>{item.completed ? '☑' : '☐'}</Text>
-                <Text
-                  style={[styles.checklistText, item.completed && styles.checklistTextCompleted]}
-                  numberOfLines={1}
-                >
-                  {item.text || 'Empty item'}
-                </Text>
-              </View>
-            ))}
-            {note.checklist_items.length > 3 && (
-              <Text style={styles.checklistMore}>
-                +{note.checklist_items.length - 3} more items
-              </Text>
+              note.is_favorite && (
+                <View style={styles.headerIcons}>
+                  <Star size={18} color={Colors.light.secondary} fill={Colors.light.secondary} />
+                </View>
+              )
             )}
           </View>
-        ) : plainTextBody ? (
-          searchQuery ? (
-            <HighlightedText
-              text={plainTextBody.substring(0, 160) + (plainTextBody.length > 160 ? '...' : '')}
-              searchQuery={searchQuery}
-              style={styles.body}
-              numberOfLines={4}
-            />
-          ) : (
-            <Text style={styles.body} numberOfLines={4}>
-              {plainTextBody.substring(0, 160) + (plainTextBody.length > 160 ? '...' : '')}
-            </Text>
-          )
-        ) : null}
+        )}
+
+        {note.is_locked ? (
+          // Show locked message instead of content
+          <View style={styles.lockedContent}>
+            <Lock size={20} color={Colors.light.textSecondary} strokeWidth={1.5} />
+            <Text style={styles.lockedText}>Locked</Text>
+            <Text style={styles.lockedSubtext}>Tap to unlock</Text>
+          </View>
+        ) : (
+          <>
+            {note.title ? (
+              searchQuery ? (
+                <HighlightedText
+                  text={note.title}
+                  searchQuery={searchQuery}
+                  style={styles.title}
+                  numberOfLines={2}
+                />
+              ) : (
+                <Text style={styles.title} numberOfLines={2}>
+                  {note.title}
+                </Text>
+              )
+            ) : null}
+            {note.checklist_items && note.checklist_items.length > 0 ? (
+              <View style={styles.checklistPreview}>
+                {note.checklist_items.slice(0, 2).map((item) => (
+                  <View key={item.id} style={styles.checklistItem}>
+                    <Text style={styles.checklistIcon}>{item.completed ? '☑' : '☐'}</Text>
+                    <Text
+                      style={[styles.checklistText, item.completed && styles.checklistTextCompleted]}
+                      numberOfLines={1}
+                    >
+                      {item.text || 'Empty item'}
+                    </Text>
+                  </View>
+                ))}
+                {note.checklist_items.length > 2 && (
+                  <Text style={styles.checklistMore}>
+                    +{note.checklist_items.length - 2} more
+                  </Text>
+                )}
+              </View>
+            ) : plainTextBody ? (
+              searchQuery ? (
+                <HighlightedText
+                  text={plainTextBody.substring(0, 100) + (plainTextBody.length > 100 ? '...' : '')}
+                  searchQuery={searchQuery}
+                  style={styles.body}
+                  numberOfLines={2}
+                />
+              ) : (
+                <Text style={styles.body} numberOfLines={2}>
+                  {plainTextBody.substring(0, 100) + (plainTextBody.length > 100 ? '...' : '')}
+                </Text>
+              )
+            ) : null}
+          </>
+        )}
+
+        {/* Metadata Footer */}
         <View style={styles.footer}>
-          <Text style={styles.date}>{formattedDate}</Text>
+          <View style={styles.metadataRow}>
+            {/* Checklist indicator */}
+            {checklistProgress && (
+              <View style={styles.metadataItem}>
+                <CheckSquare size={12} color={Colors.light.textTertiary} />
+                <Text style={styles.metadataText}>
+                  {checklistProgress.completed}/{checklistProgress.total}
+                </Text>
+              </View>
+            )}
+
+            {/* Images indicator */}
+            {note.images && note.images.length > 0 && (
+              <View style={styles.metadataItem}>
+                <ImageIcon size={12} color={Colors.light.textTertiary} />
+                {note.images.length > 1 && (
+                  <Text style={styles.metadataText}>{note.images.length}</Text>
+                )}
+              </View>
+            )}
+
+            {/* Audio indicator */}
+            {note.audio_recordings && note.audio_recordings.length > 0 && (
+              <View style={styles.metadataItem}>
+                <Mic size={12} color={Colors.light.textTertiary} />
+                {note.audio_recordings.length > 1 && (
+                  <Text style={styles.metadataText}>{note.audio_recordings.length}</Text>
+                )}
+              </View>
+            )}
+
+            {/* Lock indicator */}
+            {note.is_locked && (
+              <View style={styles.metadataItem}>
+                <Lock size={12} color={Colors.light.textTertiary} />
+              </View>
+            )}
+
+            {/* Date */}
+            <Text style={styles.date}>{formattedDate}</Text>
+          </View>
+
+          {/* Menu button */}
           <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <MoreVertical size={20} color={Colors.light.textTertiary} />
+            <MoreVertical size={18} color={Colors.light.textTertiary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -202,12 +269,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   content: {
-    gap: Spacing.sm,
+    gap: 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     minHeight: 20,
+    marginBottom: Spacing.xs,
   },
   headerIcons: {
     flexDirection: 'row',
@@ -230,10 +298,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  metadataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  metadataText: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.textTertiary,
+    fontWeight: Typography.fontWeight.medium,
   },
   date: {
     fontSize: Typography.fontSize.xs,
     color: Colors.light.textTertiary,
+    marginLeft: 'auto',
   },
   checklistPreview: {
     gap: Spacing.xs,
@@ -282,5 +371,23 @@ const styles = StyleSheet.create({
     fontSize: 60,
     opacity: 0.1,
     transform: [{ translateX: -30 }, { translateY: -30 }],
+  },
+  lockedContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  lockedText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.light.text,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  lockedSubtext: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.textTertiary,
+    textAlign: 'center',
   },
 });

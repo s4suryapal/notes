@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, 
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
-import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, Plus, X, Trash2, Archive, CheckSquare, FolderInput, CheckCircle2, Circle, FolderPlus } from 'lucide-react-native';
+import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, Plus, X, Trash2, Archive, CheckSquare, FolderInput, CheckCircle2, Circle, FolderPlus, Image as ImageIcon, Mic, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { NoteCard, NoteCardSkeleton, FormattedText } from '@/components';
@@ -368,6 +368,14 @@ export default function HomeScreen() {
           const isPattern = background?.type === 'pattern';
           const isSolid = background?.type === 'solid' && background.value;
 
+          // Calculate checklist progress
+          const checklistProgress = item.checklist_items && item.checklist_items.length > 0
+            ? {
+                completed: item.checklist_items.filter(ci => ci.completed).length,
+                total: item.checklist_items.length
+              }
+            : null;
+
           const cardContent = (
             <>
               <View style={styles.gridContent}>
@@ -386,37 +394,80 @@ export default function HomeScreen() {
                     </View>
                   )
                 )}
-                {item.title ? (
-                  <Text style={styles.gridTitle} numberOfLines={3}>
-                    {item.title}
-                  </Text>
-                ) : null}
-                {item.checklist_items && item.checklist_items.length > 0 ? (
-                  <View style={styles.gridChecklist}>
-                    {item.checklist_items.slice(0, 3).map((checkItem) => (
-                      <View key={checkItem.id} style={styles.gridChecklistItem}>
-                        <Text style={styles.gridChecklistIcon}>
-                          {checkItem.completed ? '☑' : '☐'}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.gridChecklistText,
-                            checkItem.completed && styles.gridChecklistTextCompleted,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {checkItem.text || 'Empty'}
-                        </Text>
-                      </View>
-                    ))}
+
+                {item.is_locked ? (
+                  <View style={styles.gridLockedContent}>
+                    <Lock size={28} color={Colors.light.textSecondary} strokeWidth={1.5} />
+                    <Text style={styles.gridLockedText}>Locked</Text>
                   </View>
-                ) : item.body ? (
-                  <FormattedText
-                    text={item.body.substring(0, 150) + (item.body.length > 150 ? '...' : '')}
-                    style={styles.gridBody}
-                    numberOfLines={6}
-                  />
-                ) : null}
+                ) : (
+                  <>
+                    {item.title ? (
+                      <Text style={styles.gridTitle} numberOfLines={3}>
+                        {item.title}
+                      </Text>
+                    ) : null}
+                    {item.checklist_items && item.checklist_items.length > 0 ? (
+                      <View style={styles.gridChecklist}>
+                        {item.checklist_items.slice(0, 2).map((checkItem) => (
+                          <View key={checkItem.id} style={styles.gridChecklistItem}>
+                            <Text style={styles.gridChecklistIcon}>
+                              {checkItem.completed ? '☑' : '☐'}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.gridChecklistText,
+                                checkItem.completed && styles.gridChecklistTextCompleted,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {checkItem.text || 'Empty'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : item.body ? (
+                      <FormattedText
+                        text={item.body.substring(0, 100) + (item.body.length > 100 ? '...' : '')}
+                        style={styles.gridBody}
+                        numberOfLines={4}
+                      />
+                    ) : null}
+                  </>
+                )}
+
+                {/* Metadata Footer */}
+                <View style={styles.gridMetadataFooter}>
+                  {checklistProgress && (
+                    <View style={styles.gridMetadataItem}>
+                      <CheckSquare size={12} color={Colors.light.textTertiary} />
+                      <Text style={styles.gridMetadataText}>
+                        {checklistProgress.completed}/{checklistProgress.total}
+                      </Text>
+                    </View>
+                  )}
+                  {item.images && item.images.length > 0 && (
+                    <View style={styles.gridMetadataItem}>
+                      <ImageIcon size={12} color={Colors.light.textTertiary} />
+                      {item.images.length > 1 && (
+                        <Text style={styles.gridMetadataText}>{item.images.length}</Text>
+                      )}
+                    </View>
+                  )}
+                  {item.audio_recordings && item.audio_recordings.length > 0 && (
+                    <View style={styles.gridMetadataItem}>
+                      <Mic size={12} color={Colors.light.textTertiary} />
+                      {item.audio_recordings.length > 1 && (
+                        <Text style={styles.gridMetadataText}>{item.audio_recordings.length}</Text>
+                      )}
+                    </View>
+                  )}
+                  {item.is_locked && (
+                    <View style={styles.gridMetadataItem}>
+                      <Lock size={12} color={Colors.light.textTertiary} />
+                    </View>
+                  )}
+                </View>
               </View>
               {!selectionMode && (
                 <TouchableOpacity
@@ -572,29 +623,37 @@ export default function HomeScreen() {
           renderScene={renderScene}
           onIndexChange={handleTabChange}
           initialLayout={{ width: layout.width }}
-          renderTabBar={props => (
-            <View style={styles.tabBarContainer}>
-              <TabBar
-                {...props}
-                scrollEnabled
-                indicatorStyle={styles.tabIndicator}
-                style={styles.tabBar}
-                tabStyle={styles.tab}
-                activeColor={Colors.light.primary}
-                inactiveColor={Colors.light.textSecondary}
-                contentContainerStyle={styles.tabBarContent}
-              />
-              <View style={styles.addCategoryButton}>
-                <View style={styles.verticalDivider} />
-                <TouchableOpacity
-                  style={styles.addCategoryButtonInner}
-                  onPress={() => setShowCreateCategoryModal(true)}
-                >
-                  <FolderPlus size={20} color={Colors.light.text} />
-                </TouchableOpacity>
+          renderTabBar={props => {
+            // Get current category color
+            const currentCategory = allCategories[index];
+            const indicatorColor = currentCategory?.id === 'all'
+              ? Colors.light.primary
+              : currentCategory?.color || Colors.light.primary;
+
+            return (
+              <View style={styles.tabBarContainer}>
+                <TabBar
+                  {...props}
+                  scrollEnabled
+                  indicatorStyle={[styles.tabIndicator, { backgroundColor: indicatorColor }]}
+                  style={styles.tabBar}
+                  tabStyle={styles.tab}
+                  activeColor={indicatorColor}
+                  inactiveColor={Colors.light.textSecondary}
+                  contentContainerStyle={styles.tabBarContent}
+                />
+                <View style={styles.addCategoryButton}>
+                  <View style={styles.verticalDivider} />
+                  <TouchableOpacity
+                    style={styles.addCategoryButtonInner}
+                    onPress={() => setShowCreateCategoryModal(true)}
+                  >
+                    <FolderPlus size={20} color={Colors.light.text} />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
         />
       </View>
 
@@ -909,8 +968,8 @@ const styles = StyleSheet.create({
     textTransform: 'none',
   },
   tabIndicator: {
-    backgroundColor: Colors.light.primary,
     height: 3,
+    // backgroundColor is set dynamically based on category color
   },
   notesContainer: {
     padding: Spacing.base,
@@ -1022,6 +1081,38 @@ const styles = StyleSheet.create({
   gridChecklistTextCompleted: {
     textDecorationLine: 'line-through',
     color: Colors.light.textSecondary,
+  },
+  gridMetadataFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.08)',
+    flexWrap: 'wrap',
+  },
+  gridMetadataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  gridMetadataText: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.light.textTertiary,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  gridLockedContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.lg,
+  },
+  gridLockedText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.light.textSecondary,
+    fontWeight: Typography.fontWeight.medium,
   },
   gridPatternOverlay: {
     position: 'absolute',

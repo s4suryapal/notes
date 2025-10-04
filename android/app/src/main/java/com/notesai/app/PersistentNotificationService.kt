@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 
 class PersistentNotificationService : Service() {
@@ -14,8 +15,11 @@ class PersistentNotificationService : Service() {
         private const val NOTIFICATION_ID = 1001
 
         const val ACTION_TEXT_NOTE = "com.notesai.app.ACTION_TEXT_NOTE"
+        const val ACTION_CHECKLIST = "com.notesai.app.ACTION_CHECKLIST"
+        const val ACTION_DRAWING = "com.notesai.app.ACTION_DRAWING"
         const val ACTION_PHOTO_NOTE = "com.notesai.app.ACTION_PHOTO_NOTE"
         const val ACTION_AUDIO_NOTE = "com.notesai.app.ACTION_AUDIO_NOTE"
+        const val ACTION_CLOSE = "com.notesai.app.ACTION_CLOSE"
 
         fun start(context: Context) {
             val intent = Intent(context, PersistentNotificationService::class.java)
@@ -39,6 +43,11 @@ class PersistentNotificationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_CLOSE) {
+            stopForeground(true)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         return START_STICKY
     }
 
@@ -67,6 +76,9 @@ class PersistentNotificationService : Service() {
     }
 
     private fun buildNotification(): Notification {
+        // Create custom view
+        val notificationLayout = RemoteViews(packageName, R.layout.notification_quick_actions)
+
         // Create pending intents for actions
         val textNoteIntent = Intent(this, MainActivity::class.java).apply {
             action = ACTION_TEXT_NOTE
@@ -77,12 +89,21 @@ class PersistentNotificationService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val checklistIntent = Intent(this, MainActivity::class.java).apply {
+            action = ACTION_CHECKLIST
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val checklistPendingIntent = PendingIntent.getActivity(
+            this, 1, checklistIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val photoNoteIntent = Intent(this, MainActivity::class.java).apply {
             action = ACTION_PHOTO_NOTE
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val photoNotePendingIntent = PendingIntent.getActivity(
-            this, 1, photoNoteIntent,
+            this, 2, photoNoteIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -91,42 +112,42 @@ class PersistentNotificationService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val audioNotePendingIntent = PendingIntent.getActivity(
-            this, 2, audioNoteIntent,
+            this, 3, audioNoteIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val closeIntent = Intent(this, PersistentNotificationService::class.java).apply {
+            action = ACTION_CLOSE
+        }
+        val closePendingIntent = PendingIntent.getService(
+            this, 4, closeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Set click listeners on custom layout buttons
+        notificationLayout.setOnClickPendingIntent(R.id.btn_note, textNotePendingIntent)
+        notificationLayout.setOnClickPendingIntent(R.id.btn_checklist, checklistPendingIntent)
+        notificationLayout.setOnClickPendingIntent(R.id.btn_image, photoNotePendingIntent)
+        notificationLayout.setOnClickPendingIntent(R.id.btn_audio, audioNotePendingIntent)
+        notificationLayout.setOnClickPendingIntent(R.id.btn_collapse, closePendingIntent)
 
         // Main tap intent
         val mainIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val mainPendingIntent = PendingIntent.getActivity(
-            this, 3, mainIntent,
+            this, 5, mainIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("NotesAI")
-            .setContentText("Quick note actions")
             .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .setCustomContentView(notificationLayout)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(mainPendingIntent)
-            .addAction(
-                android.R.drawable.ic_menu_edit,
-                "📝 Note",
-                textNotePendingIntent
-            )
-            .addAction(
-                android.R.drawable.ic_menu_camera,
-                "📷 Photo",
-                photoNotePendingIntent
-            )
-            .addAction(
-                android.R.drawable.ic_btn_speak_now,
-                "🎤 Audio",
-                audioNotePendingIntent
-            )
+            .setShowWhen(false)
             .build()
     }
 }

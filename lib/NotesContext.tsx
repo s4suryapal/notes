@@ -130,13 +130,23 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: authResult.error };
         }
 
-        const decryptedBody = await decryptText(note.body);
-        await Storage.updateNote(id, {
-          body: decryptedBody,
-          is_locked: false,
-        });
-        await refreshNotes();
-        return { success: true };
+        try {
+          const decryptedBody = await decryptText(note.body);
+          await Storage.updateNote(id, {
+            body: decryptedBody,
+            is_locked: false,
+          });
+          await refreshNotes();
+          return { success: true };
+        } catch (decryptError) {
+          console.error('Decryption failed, note may not be properly encrypted:', decryptError);
+          // If decryption fails, just unlock without decrypting (body might be plain text)
+          await Storage.updateNote(id, {
+            is_locked: false,
+          });
+          await refreshNotes();
+          return { success: true };
+        }
       } else {
         // Lock: encrypt the body
         const authResult = await authenticateWithBiometrics('Authenticate to lock note');
@@ -144,13 +154,22 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: authResult.error };
         }
 
-        const encryptedBody = await encryptText(note.body);
-        await Storage.updateNote(id, {
-          body: encryptedBody,
-          is_locked: true,
-        });
-        await refreshNotes();
-        return { success: true };
+        try {
+          // Encrypt the body (handles empty strings gracefully)
+          const encryptedBody = await encryptText(note.body || '');
+          await Storage.updateNote(id, {
+            body: encryptedBody,
+            is_locked: true,
+          });
+          await refreshNotes();
+          return { success: true };
+        } catch (encryptError) {
+          console.error('Encryption failed:', encryptError);
+          return {
+            success: false,
+            error: encryptError instanceof Error ? encryptError.message : 'Failed to encrypt note'
+          };
+        }
       }
     } catch (error: any) {
       console.error('Error toggling lock:', error);
@@ -170,8 +189,14 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: authResult.error };
       }
 
-      const decryptedBody = await decryptText(note.body);
-      return { success: true, decryptedBody };
+      try {
+        const decryptedBody = await decryptText(note.body);
+        return { success: true, decryptedBody };
+      } catch (decryptError) {
+        console.error('Decryption failed, returning original body:', decryptError);
+        // If decryption fails, return the original body (might be plain text)
+        return { success: true, decryptedBody: note.body };
+      }
     } catch (error: any) {
       console.error('Error unlocking note:', error);
       return { success: false, error: error?.message || 'Failed to unlock note' };

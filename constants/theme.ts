@@ -74,16 +74,16 @@ export const CategoryColors = [
 
 export const NoteColors = [
   { name: 'Default', value: null },
-  { name: 'Coral', value: '#FFCDD2' },
-  { name: 'Peach', value: '#FFCCBC' },
-  { name: 'Sand', value: '#FFE0B2' },
-  { name: 'Mint', value: '#C8E6C9' },
-  { name: 'Cyan', value: '#B2EBF2' },
-  { name: 'Blue', value: '#BBDEFB' },
-  { name: 'Periwinkle', value: '#D1C4E9' },
-  { name: 'Lavender', value: '#E1BEE7' },
-  { name: 'Pink', value: '#F8BBD0' },
-  { name: 'Gray', value: '#CFD8DC' },
+  { name: 'Red', value: '#F44336' },
+  { name: 'Orange', value: '#FF9800' },
+  { name: 'Yellow', value: '#FFEB3B' },
+  { name: 'Green', value: '#8BC34A' },
+  { name: 'Teal', value: '#00BCD4' },
+  { name: 'Blue', value: '#5C6BC0' },
+  { name: 'Purple', value: '#9C27B0' },
+  { name: 'Pink', value: '#E91E63' },
+  { name: 'Brown', value: '#795548' },
+  { name: 'Gray', value: '#78909C' },
 ];
 
 export const Spacing = {

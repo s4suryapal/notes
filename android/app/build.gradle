@@ -239,4 +239,7 @@ dependencies {
 
     // 🚀 Android 12+ Splash Screen API for smooth splash animations
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // 📝 Google ML Kit Text Recognition (OCR)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
