@@ -14,6 +14,10 @@ import androidx.recyclerview.widget.RecyclerView
 import org.json.JSONArray
 import org.json.JSONObject
 import com.tencent.mmkv.MMKV
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import android.graphics.drawable.GradientDrawable
 
 data class NoteItem(
@@ -70,28 +74,43 @@ class NotesFragment : Fragment() {
     private fun loadNotes() {
         try {
             MMKV.initialize(requireContext())
-            val mmkv = MMKV.mmkvWithID("notesai-storage")
-            val notesJson = mmkv.decodeString("notes")
+            // Open same MMKV instance and crypt key as JS layer
+            val mmkv = MMKV.mmkvWithID("notesai-storage", MMKV.MULTI_PROCESS_MODE, "notesai-encryption-key")
 
-            if (notesJson.isNullOrEmpty()) {
+            // Read notes list of IDs from JS storage
+            val idsStr = mmkv?.decodeString("notes:list")
+            if (idsStr.isNullOrEmpty()) {
                 showEmptyState()
                 return
             }
 
-            val notesArray = JSONArray(notesJson)
+            val idArray = JSONArray(idsStr)
             val notesList = mutableListOf<NoteItem>()
 
-            for (i in 0 until notesArray.length()) {
-                val noteObj = notesArray.getJSONObject(i)
-                notesList.add(
-                    NoteItem(
-                        id = noteObj.optString("id", ""),
-                        title = noteObj.optString("title", "Untitled"),
-                        body = noteObj.optString("body", ""),
-                        updatedAt = noteObj.optLong("updatedAt", 0),
-                        color = noteObj.optString("color", null)
+            for (i in 0 until idArray.length()) {
+                val id = idArray.optString(i)
+                if (id.isNullOrEmpty()) continue
+                val noteStr = mmkv?.decodeString("note:$id") ?: continue
+                try {
+                    val noteObj = JSONObject(noteStr)
+                    val isDeleted = noteObj.optBoolean("is_deleted", false)
+                    val isArchived = noteObj.optBoolean("is_archived", false)
+                    if (isDeleted || isArchived) continue
+
+                    val updatedAtIso = noteObj.optString("updated_at", "")
+                    val updatedMillis = parseIsoToMillis(updatedAtIso)
+
+                    notesList.add(
+                        NoteItem(
+                            id = noteObj.optString("id", id),
+                            title = noteObj.optString("title", "Untitled"),
+                            body = noteObj.optString("body", ""),
+                            updatedAt = updatedMillis,
+                            color = if (noteObj.isNull("color")) null else noteObj.optString("color", null)
+                        )
                     )
-                )
+                } catch (_: Exception) {
+                }
             }
 
             // Sort by updated time (most recent first) and take 10
@@ -108,6 +127,23 @@ class NotesFragment : Fragment() {
         } catch (e: Exception) {
             showEmptyState()
         }
+    }
+
+    private fun parseIsoToMillis(iso: String?): Long {
+        if (iso.isNullOrEmpty()) return 0L
+        // Try with milliseconds
+        val patterns = arrayOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        )
+        for (p in patterns) {
+            try {
+                val sdf = SimpleDateFormat(p, Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                return sdf.parse(iso)?.time ?: 0L
+            } catch (_: ParseException) {}
+        }
+        return 0L
     }
 
     private fun showEmptyState() {

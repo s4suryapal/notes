@@ -1,133 +1,94 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 
-const ENCRYPTION_KEY = 'notesai_encryption_key';
+// Storage key for AES-256-GCM
+const AES_KEY_V1 = 'notesai_aes_key_v1';
 
 /**
  * Get or generate encryption key
  */
-async function getEncryptionKey(): Promise<string> {
+/**
+ * WebCrypto helpers (AES-256-GCM)
+ */
+function hasSubtleCrypto(): boolean {
   try {
-    const existingKey = await SecureStore.getItemAsync(ENCRYPTION_KEY);
-
-    if (existingKey) {
-      return existingKey;
-    }
-
-    // Generate new key using crypto
-    const key = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      `${Date.now()}-${Math.random()}`
-    );
-    await SecureStore.setItemAsync(ENCRYPTION_KEY, key);
-
-    return key;
-  } catch (error) {
-    console.error('Error getting encryption key:', error);
-    throw error;
+    return typeof globalThis.crypto !== 'undefined' && !!globalThis.crypto.subtle && typeof globalThis.crypto.subtle.importKey === 'function';
+  } catch {
+    return false;
   }
 }
 
-/**
- * Base64 encode using btoa (React Native compatible)
- * Handles Unicode/UTF-8 strings properly
- */
-function base64Encode(str: string): string {
-  try {
-    // Convert string to UTF-8 bytes
-    const encoder = encodeURIComponent(str);
-    // Replace URL encoding with characters
-    const utf8Str = encoder.replace(/%([0-9A-F]{2})/g, (_, p1) => {
-      return String.fromCharCode(parseInt(p1, 16));
-    });
-
-    // Use btoa if available
-    if (typeof btoa !== 'undefined') {
-      return btoa(utf8Str);
-    }
-
-    // Fallback: manual base64 encoding
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    let i = 0;
-
-    while (i < utf8Str.length) {
-      const a = utf8Str.charCodeAt(i++);
-      const b = i < utf8Str.length ? utf8Str.charCodeAt(i++) : 0;
-      const c = i < utf8Str.length ? utf8Str.charCodeAt(i++) : 0;
-
-      const bitmap = (a << 16) | (b << 8) | c;
-
-      result += chars[(bitmap >> 18) & 63];
-      result += chars[(bitmap >> 12) & 63];
-      result += i > utf8Str.length + 1 ? '=' : chars[(bitmap >> 6) & 63];
-      result += i > utf8Str.length ? '=' : chars[bitmap & 63];
-    }
-    return result;
-  } catch (error) {
-    console.error('Error in base64Encode:', error);
-    throw new Error('Failed to encode to base64');
+async function getRandomBytes(len: number): Promise<Uint8Array> {
+  const arr = new Uint8Array(len);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(arr);
+    return arr;
   }
+  // Fallback to expo-crypto
+  const rnd = await Crypto.getRandomBytesAsync(len);
+  return Uint8Array.from(rnd);
 }
 
-/**
- * Base64 decode using atob (React Native compatible)
- * Handles Unicode/UTF-8 strings properly
- */
-function base64Decode(str: string): string {
-  try {
-    let decoded: string;
+// Base64 helpers for raw bytes (no Unicode mangling)
+const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
-    // Use atob if available
-    if (typeof atob !== 'undefined') {
-      decoded = atob(str);
-    } else {
-      // Fallback: manual base64 decoding
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-      let result = '';
-      const cleanStr = str.replace(/[^A-Za-z0-9+/=]/g, '');
-
-      for (let i = 0; i < cleanStr.length;) {
-        const a = chars.indexOf(cleanStr.charAt(i++));
-        const b = chars.indexOf(cleanStr.charAt(i++));
-        const c = chars.indexOf(cleanStr.charAt(i++));
-        const d = chars.indexOf(cleanStr.charAt(i++));
-
-        const bitmap = (a << 18) | (b << 12) | (c << 6) | d;
-
-        result += String.fromCharCode((bitmap >> 16) & 255);
-        if (c !== 64) result += String.fromCharCode((bitmap >> 8) & 255);
-        if (d !== 64) result += String.fromCharCode(bitmap & 255);
-      }
-      decoded = result;
-    }
-
-    // Convert from UTF-8 bytes back to Unicode string
-    // Convert each byte to percent encoding manually
-    let percentEncoded = '';
-    for (let i = 0; i < decoded.length; i++) {
-      const byte = decoded.charCodeAt(i);
-      percentEncoded += '%' + byte.toString(16).padStart(2, '0').toUpperCase();
-    }
-
-    return decodeURIComponent(percentEncoded);
-  } catch (error) {
-    console.error('Error in base64Decode:', error);
-    throw new Error('Failed to decode from base64');
-  }
-}
-
-/**
- * Simple XOR encryption (for demo - use proper encryption in production)
- * Note: For production, consider using react-native-aes-crypto or similar
- */
-function xorEncryptDecrypt(text: string, key: string): string {
+function bytesToBase64(bytes: Uint8Array): string {
   let result = '';
-  for (let i = 0; i < text.length; i++) {
-    result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  let i = 0;
+  while (i < bytes.length) {
+    const a = bytes[i++] ?? 0;
+    const b = bytes[i++] ?? 0;
+    const c = bytes[i++] ?? 0;
+    const triplet = (a << 16) | (b << 8) | c;
+    result += B64_ALPHABET[(triplet >> 18) & 0x3f];
+    result += B64_ALPHABET[(triplet >> 12) & 0x3f];
+    result += i - 1 > bytes.length ? '=' : B64_ALPHABET[(triplet >> 6) & 0x3f];
+    result += i > bytes.length ? '=' : B64_ALPHABET[triplet & 0x3f];
   }
   return result;
 }
+
+function base64ToBytes(b64: string): Uint8Array {
+  // Clean invalid chars
+  const clean = b64.replace(/[^A-Za-z0-9+/=]/g, '');
+  const out: number[] = [];
+  let i = 0;
+  while (i < clean.length) {
+    const a = B64_ALPHABET.indexOf(clean.charAt(i++));
+    const b = B64_ALPHABET.indexOf(clean.charAt(i++));
+    const c = B64_ALPHABET.indexOf(clean.charAt(i++));
+    const d = B64_ALPHABET.indexOf(clean.charAt(i++));
+    const triplet = (a << 18) | (b << 12) | ((c & 0x3f) << 6) | (d & 0x3f);
+    out.push((triplet >> 16) & 0xff);
+    if (c !== 64) out.push((triplet >> 8) & 0xff);
+    if (d !== 64) out.push(triplet & 0xff);
+  }
+  return Uint8Array.from(out);
+}
+
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  return base64ToBytes(b64).buffer;
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  return bytesToBase64(new Uint8Array(buf));
+}
+
+async function getOrCreateAesKey(): Promise<CryptoKey> {
+  const subtle = globalThis.crypto!.subtle;
+  // Try existing
+  const stored = await SecureStore.getItemAsync(AES_KEY_V1);
+  if (stored) {
+    const raw = base64ToArrayBuffer(stored);
+    return subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  }
+  // Generate 32-byte key
+  const rawKey = getRandomBytes(32);
+  const key = await subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  await SecureStore.setItemAsync(AES_KEY_V1, arrayBufferToBase64(rawKey.buffer));
+  return key;
+}
+
 
 /**
  * Encrypt text
@@ -140,15 +101,15 @@ export async function encryptText(text: string): Promise<string> {
       throw new Error('Cannot encrypt null or undefined text');
     }
 
-    // Handle empty string - just return a marker to indicate it was encrypted
-    if (text === '') {
-      return base64Encode('__EMPTY__');
-    }
-
-    const key = await getEncryptionKey();
-    const encrypted = xorEncryptDecrypt(text, key);
-    // Convert to base64 for safe storage
-    return base64Encode(encrypted);
+    // Prefer AES-256-GCM (WebCrypto) when available
+    if (!hasSubtleCrypto()) throw new Error('AES-GCM not available on this device');
+    const subtle = globalThis.crypto!.subtle;
+    const key = await getOrCreateAesKey();
+    const iv = await getRandomBytes(12); // 96-bit IV
+    const enc = new TextEncoder().encode(text);
+    const cipher = await subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+    const payload = `aesgcm:v1:${arrayBufferToBase64(iv.buffer)}:${arrayBufferToBase64(cipher)}`;
+    return payload;
   } catch (error) {
     console.error('Error encrypting text:', error);
     throw new Error(`Encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -169,16 +130,20 @@ export async function decryptText(encryptedText: string): Promise<string> {
       return '';
     }
 
-    const key = await getEncryptionKey();
-    // Decode from base64
-    const encrypted = base64Decode(encryptedText);
-
-    // Check if this was an empty string marker
-    if (encrypted === '__EMPTY__') {
-      return '';
+    // AES-256-GCM path: detect payload prefix
+    if (!encryptedText.startsWith('aesgcm:v1:')) {
+      // Backward compatibility removed per product decision
+      throw new Error('Unsupported ciphertext format');
     }
-
-    return xorEncryptDecrypt(encrypted, key);
+    if (!hasSubtleCrypto()) throw new Error('AES-GCM not available on this device');
+    const parts = encryptedText.split(':');
+    if (parts.length !== 4) throw new Error('Invalid AES payload');
+    const iv = base64ToArrayBuffer(parts[2]);
+    const cipher = base64ToArrayBuffer(parts[3]);
+    const subtle = globalThis.crypto!.subtle;
+    const key = await getOrCreateAesKey();
+    const plainBuf = await subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, cipher);
+    return new TextDecoder().decode(plainBuf);
   } catch (error) {
     console.error('Error decrypting text:', error);
     throw new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -190,7 +155,8 @@ export async function decryptText(encryptedText: string): Promise<string> {
  */
 export async function isEncryptionAvailable(): Promise<boolean> {
   try {
-    await getEncryptionKey();
+    if (!hasSubtleCrypto()) return false;
+    await getOrCreateAesKey();
     return true;
   } catch {
     return false;

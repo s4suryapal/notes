@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, AppState, AppStateStatus } from 'react-native';
 import { Audio } from 'expo-av';
 import { Play, Pause, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { useToast } from '@/lib/ToastContext';
 
 interface AudioPlayerProps {
   uri: string;
@@ -15,10 +16,18 @@ export default function AudioPlayer({ uri, onDelete, index }: AudioPlayerProps) 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState<number>(0);
   const [position, setPosition] = useState<number>(0);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const { showInfo } = useToast();
 
   useEffect(() => {
     loadSound();
+    const sub = AppState.addEventListener('change', (next) => {
+      appStateRef.current = next;
+      setAppState(next);
+    });
     return () => {
+      sub.remove();
       if (sound) {
         sound.unloadAsync();
       }
@@ -48,13 +57,30 @@ export default function AudioPlayer({ uri, onDelete, index }: AudioPlayerProps) 
 
   const handlePlayPause = async () => {
     if (!sound) return;
-
-    if (isPlaying) {
-      await sound.pauseAsync();
-    } else {
-      await sound.playAsync();
+    const isForeground = appStateRef.current === 'active';
+    if (!isForeground) {
+      showInfo('Bring app to foreground to play audio');
+      return;
+    }
+    try {
+      if (isPlaying) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync();
+      }
+    } catch (e) {
+      console.log('Audio play/pause error:', e);
+      showInfo('Audio not available right now');
     }
   };
+
+  // Auto-pause when app goes to background
+  useEffect(() => {
+    const isForeground = appState === 'active';
+    if (!isForeground && sound && isPlaying) {
+      sound.pauseAsync().catch(() => {});
+    }
+  }, [appState, isPlaying, sound]);
 
   const formatTime = (millis: number) => {
     const seconds = millis / 1000;

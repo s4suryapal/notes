@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, Check } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useLanguage } from '@/lib/LanguageContext';
+import BannerAdComponent from '@/components/BannerAdComponent';
 
 type Language = 'en' | 'hi' | 'de' | 'es' | 'fr' | 'ru' | 'id' | 'ja' | 'zh' | 'ko' | 'vi' | 'pt' | 'ar' | 'tr' | 'pl' | 'it' | 'fil' | 'uk' | 'th' | 'af' | 'bn';
 
@@ -152,6 +153,16 @@ export default function LanguageSelectionScreen() {
           })}
         </View>
       </ScrollView>
+
+      {/* Big Banner Ad at bottom */}
+      <View style={[styles.bannerAdContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <BannerAdComponent
+          adType="inlineAdaptiveBanner"
+          height={250}
+          style={styles.bannerAdWrapper}
+          location="language-selection"
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -236,5 +247,16 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: 'white',
+  },
+  bannerAdContainer: {
+    borderTopWidth: 1,
+    minHeight: 250,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+  },
+  bannerAdWrapper: {
+    width: '100%',
+    minHeight: 250,
+    alignSelf: 'stretch',
   },
 });

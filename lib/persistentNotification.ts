@@ -16,10 +16,10 @@ export async function setupPersistentNotification() {
     return; // Only for Android
   }
 
-  // Request permissions
-  const { status } = await Notifications.requestPermissionsAsync();
+  // Check if we already have permission (don't request here)
+  const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') {
-    console.log('Notification permissions not granted');
+    console.log('Notification permissions not granted - skipping notification setup');
     return;
   }
 

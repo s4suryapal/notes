@@ -10,8 +10,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import LottieView from 'lottie-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronRight,
   ScanText,
@@ -155,6 +154,7 @@ export default function Onboarding({ visible, onComplete }: OnboardingProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
   const isLastSlide = currentSlide === slides.length - 1;
   const slide = slides[currentSlide];
@@ -246,7 +246,10 @@ export default function Onboarding({ visible, onComplete }: OnboardingProps) {
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
           {/* Skip Button */}
           {!isLastSlide && (
-            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <TouchableOpacity
+              style={[styles.skipButton, { top: insets.top + Spacing.md }]}
+              onPress={handleSkip}
+            >
               <Text style={styles.skipButtonText}>Skip</Text>
             </TouchableOpacity>
           )}

@@ -40,8 +40,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#FFF8E1",
-        "monochromeImage": "./assets/images/icon.png"
+        "backgroundColor": "#FFF8E1"
       }
     },
     "web": {
@@ -59,10 +58,31 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to add photos to notes.",
           "microphonePermission": false
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": ""
+      },
+      "googleMobileAds": {
+        "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+        "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+      },
+      "react-native-google-mobile-ads": {
+        "android_app_id": "ca-app-pub-3940256099942544~3347511713",
+        "ios_app_id": "ca-app-pub-3940256099942544~1458002511"
+      }
     }
   }
 }

@@ -16,35 +16,22 @@ const logAdMob = (category: string, message: string, data?: any) => {
 
 /**
  * AdMobService - React Native AdMob integration for NotesAI
- *
- * IMPORTANT: App Open Ads are managed natively in Kotlin (AppOpenAdManager.kt)
- * following Google AdMob guidelines. This service maintains the TypeScript API
- * for backward compatibility but delegates to native implementation.
- *
- * Native Implementation Benefits:
- * - Proper app lifecycle tracking with ProcessLifecycleOwner
- * - Launch count tracking (no ads on first 2 launches)
- * - Automatic preloading and expiration handling
- * - Better integration with splash screen and cold starts
- *
- * See: android/app/src/main/java/com/notesai/easynotes/ai/smart/notepad/ocr/docscanner/privatenotes/AppOpenAdManager.kt
  */
 export class AdMobService {
   private static instance: AdMobService;
   private isInitialized = false;
 
-  // NOTE: App Open Ads are now handled natively in Kotlin
-  // These properties are kept for backward compatibility but are deprecated
+  // App Open Ad state
   private appOpenAd: AppOpenAd | null = null;
   private appOpenAdLoaded = false;
   private appOpenAdLoadTime = 0;
   private isShowingAppOpenAd = false;
+  private isLoadingAppOpenAd = false;
 
   constructor() {
     logAdMob('INIT', 'AdMobService instance created', {
       initialState: {
-        isInitialized: false,
-        note: 'App Open Ads managed by native AppOpenAdManager.kt'
+        isInitialized: false
       }
     });
   }
@@ -224,56 +211,123 @@ export class AdMobService {
   }
 
   // AppOpen Ad Methods
-  // NOTE: These methods are deprecated - App Open Ads are now managed natively
-  // Keeping them for backward compatibility, but they now log warnings
 
   /**
-   * @deprecated App Open Ads are now managed by native AppOpenAdManager.kt
-   * This method is kept for backward compatibility but does nothing.
+   * Load App Open Ad
    */
   async loadAppOpenAd(): Promise<void> {
-    logAdMob('DEPRECATED', 'loadAppOpenAd() called but App Open Ads are managed natively', {
-      recommendation: 'App Open Ads are automatically managed by AppOpenAdManager.kt',
-      location: 'android/app/src/main/java/com/notesai/easynotes/ai/smart/notepad/ocr/docscanner/privatenotes/AppOpenAdManager.kt'
-    });
+    if (this.isLoadingAppOpenAd || this.isAppOpenAdReady()) {
+      logAdMob('APP_OPEN_LOAD_SKIP', 'App Open Ad already loading or loaded');
+      return;
+    }
 
-    // No-op: Native implementation handles loading automatically
-    return Promise.resolve();
+    this.isLoadingAppOpenAd = true;
+    logAdMob('APP_OPEN_LOAD_START', 'Loading App Open Ad...');
+
+    try {
+      const adUnitId = this.getAdUnitId('appOpen');
+
+      this.appOpenAd = AppOpenAd.createForAdRequest(adUnitId, {
+        requestNonPersonalizedAdsOnly: false,
+      });
+
+      this.appOpenAd.addAdEventListener('loaded', () => {
+        this.appOpenAdLoaded = true;
+        this.appOpenAdLoadTime = Date.now();
+        this.isLoadingAppOpenAd = false;
+        logAdMob('APP_OPEN_LOADED', 'App Open Ad loaded successfully');
+      });
+
+      this.appOpenAd.addAdEventListener('error', (error) => {
+        this.isLoadingAppOpenAd = false;
+        this.appOpenAdLoaded = false;
+        logAdMob('APP_OPEN_ERROR', 'App Open Ad failed to load', { error });
+      });
+
+      this.appOpenAd.load();
+    } catch (error) {
+      this.isLoadingAppOpenAd = false;
+      logAdMob('APP_OPEN_LOAD_ERROR', 'Failed to create App Open Ad', { error });
+      throw error;
+    }
   }
 
   /**
-   * @deprecated App Open Ads are now managed by native AppOpenAdManager.kt
-   * This method is kept for backward compatibility but always returns false.
+   * Show App Open Ad
    */
   async showAppOpenAd(): Promise<boolean> {
-    logAdMob('DEPRECATED', 'showAppOpenAd() called but App Open Ads are managed natively', {
-      recommendation: 'App Open Ads are automatically shown by AppOpenAdManager.kt on app foreground',
-      behavior: 'Native implementation follows Google guidelines (no ads on first 2 launches)'
-    });
+    if (this.isShowingAppOpenAd) {
+      logAdMob('APP_OPEN_SHOW_SKIP', 'App Open Ad already showing');
+      return false;
+    }
 
-    // No-op: Native implementation handles showing automatically
-    return Promise.resolve(false);
+    if (!this.isAppOpenAdReady()) {
+      logAdMob('APP_OPEN_NOT_READY', 'App Open Ad not ready');
+      return false;
+    }
+
+    // Check if ad is expired (4 hours)
+    const adAge = Date.now() - this.appOpenAdLoadTime;
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    if (adAge > FOUR_HOURS) {
+      logAdMob('APP_OPEN_EXPIRED', 'App Open Ad expired, loading new ad', { age: adAge });
+      this.appOpenAd = null;
+      this.appOpenAdLoaded = false;
+      await this.loadAppOpenAd();
+      return false;
+    }
+
+    try {
+      this.isShowingAppOpenAd = true;
+      logAdMob('APP_OPEN_SHOW_START', 'Showing App Open Ad');
+
+      if (!this.appOpenAd) {
+        this.isShowingAppOpenAd = false;
+        return false;
+      }
+
+      // Add event listeners before showing
+      this.appOpenAd.addAdEventListener('closed', () => {
+        this.isShowingAppOpenAd = false;
+        this.appOpenAd = null;
+        this.appOpenAdLoaded = false;
+        logAdMob('APP_OPEN_CLOSED', 'App Open Ad closed, preloading next ad');
+        // Preload next ad
+        this.loadAppOpenAd();
+      });
+
+      this.appOpenAd.addAdEventListener('opened', () => {
+        logAdMob('APP_OPEN_OPENED', 'App Open Ad opened');
+      });
+
+      await this.appOpenAd.show();
+      logAdMob('APP_OPEN_SHOWN', 'App Open Ad shown successfully');
+      return true;
+
+    } catch (error) {
+      this.isShowingAppOpenAd = false;
+      logAdMob('APP_OPEN_SHOW_ERROR', 'Failed to show App Open Ad', { error });
+      // Load new ad for next time
+      this.appOpenAd = null;
+      this.appOpenAdLoaded = false;
+      await this.loadAppOpenAd();
+      return false;
+    }
   }
 
   /**
-   * @deprecated App Open Ads are now managed by native AppOpenAdManager.kt
+   * Check if App Open Ad is ready
    */
   isAppOpenAdReady(): boolean {
-    logAdMob('DEPRECATED', 'isAppOpenAdReady() called but App Open Ads are managed natively');
-    return false;
+    return this.appOpenAdLoaded && this.appOpenAd !== null;
   }
 
   /**
-   * @deprecated App Open Ads are now managed by native AppOpenAdManager.kt
-   * This method is kept for backward compatibility but does nothing.
+   * Preload App Open Ad
    */
   async preloadAppOpenAd(): Promise<void> {
-    logAdMob('DEPRECATED', 'preloadAppOpenAd() called but App Open Ads are managed natively', {
-      note: 'Native implementation automatically preloads ads on app startup'
-    });
-
-    // No-op: Native implementation handles preloading automatically
-    return Promise.resolve();
+    logAdMob('APP_OPEN_PRELOAD', 'Preloading App Open Ad');
+    await this.loadAppOpenAd();
   }
 
   // Helper method to get user-friendly error messages

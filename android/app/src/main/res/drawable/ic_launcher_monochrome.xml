@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Monochrome icon for Android 13+ themed icons
+  Following adaptive icon design guidelines:
+  - Size: 108x108 dp viewport
+  - Logo: 48-66 dp (centered in safe zone)
+  - Simple single-color design for theming
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Note/Document icon centered in safe zone (60dp size) -->
+    <group
+        android:translateX="24"
+        android:translateY="24">
+
+        <!-- Document background -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M20,12 L20,48 L40,48 L40,12 Z" />
+
+        <!-- Lines on document -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:pathData="M24,20 L36,20 M24,26 L36,26 M24,32 L36,32 M24,38 L30,38" />
+
+        <!-- Document outline -->
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="2.5"
+            android:fillColor="@android:color/transparent"
+            android:pathData="M20,12 L20,48 L40,48 L40,12 Z" />
+    </group>
+</vector>

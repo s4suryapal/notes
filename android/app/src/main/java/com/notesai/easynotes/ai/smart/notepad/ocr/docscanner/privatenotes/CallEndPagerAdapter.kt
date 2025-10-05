@@ -9,12 +9,14 @@ class CallEndPagerAdapter(
     private val phoneNumber: String
 ) : FragmentStateAdapter(activity) {
 
-    override fun getItemCount(): Int = 2
+    override fun getItemCount(): Int = 4
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
             0 -> NotesFragment.newInstance(phoneNumber)
-            1 -> QuickActionsFragment.newInstance(phoneNumber)
+            1 -> MessagesFragment.newInstance(phoneNumber)
+            2 -> RemindersFragment.newInstance()
+            3 -> ActionsFragment.newInstance(phoneNumber)
             else -> NotesFragment.newInstance(phoneNumber)
         }
     }

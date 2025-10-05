@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform, InteractionManager } from 'react-native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
@@ -90,14 +90,18 @@ export default function HomeScreen() {
   };
 
   const handleCreateNote = () => {
-    router.push('/note/new');
+    // Derive current tab's category id; skip if 'all'
+    const currentCat = allCategories[index];
+    const catId = currentCat?.id && currentCat.id !== 'all' ? currentCat.id : null;
+    const href = catId ? `/note/new?category=${encodeURIComponent(catId)}` : '/note/new';
+    router.push(href);
   };
 
   const handleNoteMenu = (noteId: string) => {
     const note = notes.find((n) => n.id === noteId);
     if (note) {
       setSelectedNote(note);
-      setShowActionsSheet(true);
+      InteractionManager.runAfterInteractions(() => setShowActionsSheet(true));
     }
   };
 
@@ -471,13 +475,17 @@ export default function HomeScreen() {
                 </View>
               </View>
               {!selectionMode && (
-                <TouchableOpacity
-                  onPress={() => handleNoteMenu(item.id)}
+                <Pressable
+                  onPress={(e) => {
+                    (e as any)?.stopPropagation?.();
+                    handleNoteMenu(item.id);
+                  }}
                   style={styles.gridMenu}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  android_ripple={{ color: 'transparent' }}
                 >
                   <Text style={styles.gridMenuIcon}>⋮</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
               {isPattern && background?.pattern === 'grid' && (
                 <View style={styles.gridPatternOverlay} />
@@ -522,7 +530,7 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => handleNotePress(item.id)}
                   onLongPress={() => handleLongPress(item.id)}
-                  activeOpacity={0.7}
+                  activeOpacity={1}
                 >
                   {cardContent}
                 </TouchableOpacity>
@@ -667,7 +675,9 @@ export default function HomeScreen() {
         />
       </View>
 
-      {!selectionMode && <FAB onPress={handleCreateNote} />}
+      {!selectionMode && (
+        <FAB onPress={handleCreateNote} bottom={insets.bottom + 50 + Spacing.base} />
+      )}
 
       {/* Bulk Actions Bottom Bar */}
       {selectionMode && (

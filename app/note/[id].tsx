@@ -40,7 +40,7 @@ import {
 } from '@/hooks/useNoteEditor';
 
 export default function NoteEditorScreen() {
-  const { id, mode } = useLocalSearchParams();
+  const { id, mode, category } = useLocalSearchParams();
   const isNewNote = id === 'new';
 
   const {
@@ -73,6 +73,26 @@ export default function NoteEditorScreen() {
   const richTextRef = useRef<RichEditor>(null);
   const scrollRef = useRef<ScrollView>(null);
   const initialLoadDone = useRef(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const focusAttemptsRef = useRef(0);
+
+  const focusEditorSafely = useCallback(() => {
+    const tryFocus = () => {
+      try {
+        richTextRef.current?.focusContentEditor?.();
+      } catch (e) {
+        // ignore
+      }
+      // Retry a few times to ensure keyboard opens
+      focusAttemptsRef.current += 1;
+      if (focusAttemptsRef.current < 4) {
+        setTimeout(() => {
+          try { richTextRef.current?.focusContentEditor?.(); } catch {}
+        }, 60);
+      }
+    };
+    requestAnimationFrame(tryFocus);
+  }, []);
 
   // Auto-save hook
   const { currentNoteId, debouncedSave, immediateSave, cleanup, hasActualContent } = useAutoSave({
@@ -168,15 +188,30 @@ export default function NoteEditorScreen() {
 
   const selectedCategoryData = categories.find((c) => c.id === selectedCategory);
 
-  // Load existing note
+  // Reset state when changing to a different note id (new or existing)
   useEffect(() => {
-    const loadNote = async () => {
-      if (!isNewNote && id && !initialLoadDone.current) {
+    initialLoadDone.current = false;
+    // Reset editor state; we'll repopulate below
+    setTitle('');
+    setBody('');
+    setSelectedCategory(null);
+    setSelectedColor(null);
+    imageManager.setImages([]);
+    audioRecorder.setAudioRecordings([]);
+    checklistManager.setChecklistItems([]);
+    checklistManager.setShowChecklist(false);
+    currentNoteId.current = null;
+    setLoading(!isNewNote);
+  }, [id, isNewNote]);
+
+  // Load note content once per id
+  useEffect(() => {
+    const run = async () => {
+      if (initialLoadDone.current) return;
+      if (!isNewNote && id) {
         const note = notes.find((n) => n.id === id);
         if (note) {
           setTitle(note.title);
-
-          // Handle locked notes
           if (note.is_locked) {
             const result = await unlockNote(id as string);
             if (result.success && result.decryptedBody) {
@@ -190,7 +225,6 @@ export default function NoteEditorScreen() {
           } else {
             setBody(note.body);
           }
-
           setSelectedCategory(note.category_id);
           setSelectedColor(note.color);
           imageManager.setImages(note.images || []);
@@ -201,29 +235,41 @@ export default function NoteEditorScreen() {
         }
         setLoading(false);
         initialLoadDone.current = true;
+      }
 
-        setTimeout(() => richTextRef.current?.focusContentEditor(), 300);
-      } else if (isNewNote && !initialLoadDone.current) {
+      if (isNewNote && !initialLoadDone.current) {
+        // Preselect category if provided
+        if (typeof category === 'string' && category !== 'all') {
+          const exists = categories.some(c => c.id === category);
+          setSelectedCategory(exists ? category : null);
+        }
         setLoading(false);
         initialLoadDone.current = true;
-
-        // Handle mode parameter
-        setTimeout(() => {
-          if (mode === 'photo') {
-            imageManager.handleImagePickerPress();
-          } else if (mode === 'audio') {
-            audioRecorder.openRecorder();
-          } else if (mode === 'checklist') {
-            checklistManager.handleToggleChecklist();
-          } else {
-            richTextRef.current?.focusContentEditor();
-          }
-        }, 300);
       }
     };
+    run();
+  }, [id, isNewNote, notes, unlockNote, category, categories]);
 
-    loadNote();
-  }, [id, isNewNote, notes, unlockNote, mode]);
+  // Focus editor when it is ready
+  useEffect(() => {
+    if (!loading && editorReady) {
+      focusAttemptsRef.current = 0;
+      focusEditorSafely();
+    }
+  }, [loading, editorReady, focusEditorSafely]);
+
+  // Handle optional mode actions for new notes after initial load
+  useEffect(() => {
+    if (!isNewNote) return;
+    if (!initialLoadDone.current) return;
+    if (mode === 'photo') {
+      setTimeout(() => imageManager.handleImagePickerPress(), 200);
+    } else if (mode === 'audio') {
+      setTimeout(() => audioRecorder.openRecorder(), 200);
+    } else if (mode === 'checklist') {
+      setTimeout(() => checklistManager.handleToggleChecklist(), 200);
+    }
+  }, [isNewNote, mode]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -490,6 +536,7 @@ export default function NoteEditorScreen() {
                 placeholder="Note here..."
                 initialContentHTML={body}
                 onChange={handleBodyChange}
+                editorInitializedCallback={() => setEditorReady(true)}
                 onCursorPosition={(scrollY) => {
                   scrollRef.current?.scrollTo({ y: scrollY - 30, animated: true });
                 }}

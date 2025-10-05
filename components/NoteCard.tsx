@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { MoreVertical, Star, CheckCircle2, Circle, Lock, Image as ImageIcon, Mic, CheckSquare } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
@@ -50,6 +50,7 @@ export const NoteCard = React.memo(function NoteCard({
   selectionMode = false,
   isSelected = false
 }: NoteCardProps) {
+  const [menuPressing, setMenuPressing] = useState(false);
   const formattedDate = new Date(note.updated_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: '2-digit',
@@ -200,18 +201,35 @@ export const NoteCard = React.memo(function NoteCard({
           </View>
 
           {/* Menu button */}
-          <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Pressable
+            onPress={(e) => {
+              // Prevent parent press feedback and navigate smoothly
+              (e as any)?.stopPropagation?.();
+              onMenuPress();
+            }}
+            onPressIn={() => setMenuPressing(true)}
+            onPressOut={() => setMenuPressing(false)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            android_ripple={{ color: 'transparent' }}
+          >
             <MoreVertical size={18} color={Colors.light.textTertiary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </>
   );
 
-  // Render card with appropriate background
+  // Render card with appropriate background using Pressable to control pressed feedback
+  const pressedStyle = { transform: [{ scale: 0.99 }], opacity: 0.98 } as const;
+
   if (background?.type === 'gradient' && background.gradient && background.gradient.length >= 2) {
     return (
-      <TouchableOpacity style={styles.containerNoPadding} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        android_ripple={{ color: 'transparent' }}
+        style={({ pressed }) => [styles.containerNoPadding, pressed && !menuPressing ? pressedStyle : null]}
+      >
         <LinearGradient
           colors={background.gradient as [string, string, ...string[]]}
           style={styles.gradientBackground}
@@ -220,36 +238,36 @@ export const NoteCard = React.memo(function NoteCard({
         >
           {renderCardContent()}
         </LinearGradient>
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   if (background?.type === 'pattern') {
     return (
-      <TouchableOpacity
-        style={[styles.container, { backgroundColor: background.value || Colors.light.surface }]}
+      <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
-        activeOpacity={0.7}
+        android_ripple={{ color: 'transparent' }}
+        style={({ pressed }) => [styles.container, { backgroundColor: background.value || Colors.light.surface }, pressed && !menuPressing ? pressedStyle : null]}
       >
         {background.pattern === 'grid' && <View style={styles.gridPattern} />}
         {background.pattern === 'floral' && <Text style={styles.patternEmoji}>🌸</Text>}
         {background.pattern === 'strawberry' && <Text style={styles.patternEmoji}>🍓</Text>}
         {renderCardContent()}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   // Solid color or no background
   return (
-    <TouchableOpacity
-      style={[styles.container, background?.value && { backgroundColor: background.value }]}
+    <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      activeOpacity={0.7}
+      android_ripple={{ color: 'transparent' }}
+      style={({ pressed }) => [styles.container, background?.value && { backgroundColor: background.value }, pressed && !menuPressing ? pressedStyle : null]}
     >
       {renderCardContent()}
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 

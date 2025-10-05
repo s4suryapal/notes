@@ -1,19 +1,31 @@
-import type { FirebaseCrashlyticsTypes } from '@react-native-firebase/crashlytics';
-import {
-  getCrashlytics,
-  setCrashlyticsCollectionEnabled,
-  setUserId,
-  setAttributes,
-  log,
-  recordError,
-} from '@react-native-firebase/crashlytics';
-
-type CrashlyticsInstance = FirebaseCrashlyticsTypes.Module;
+type CrashlyticsInstance = any;
 
 export class CrashlyticsService {
   private static instance: CrashlyticsService;
   private crashlytics: CrashlyticsInstance | null = null;
   private initialized = false;
+  private loader?: Promise<boolean>;
+
+  private async loadFirebase(): Promise<boolean> {
+    if (this.crashlytics && this.initialized) return true;
+    if (this.loader) return this.loader;
+    this.loader = (async () => {
+      try {
+        const mod = await import('@react-native-firebase/crashlytics');
+        this.crashlytics = mod.getCrashlytics();
+        await mod.setCrashlyticsCollectionEnabled(this.crashlytics, true);
+        this.initialized = true;
+        console.log('[CRASHLYTICS] Initialized successfully');
+        return true;
+      } catch (error) {
+        console.log('[CRASHLYTICS] Initialization error:', error);
+        this.crashlytics = null;
+        this.initialized = false;
+        return false;
+      }
+    })();
+    return this.loader;
+  }
 
   public static getInstance(): CrashlyticsService {
     if (!CrashlyticsService.instance) {
@@ -23,23 +35,7 @@ export class CrashlyticsService {
   }
 
   async initialize(): Promise<boolean> {
-    if (this.initialized && this.crashlytics) {
-      return true; // Already initialized, skip
-    }
-
-    try {
-      // Get crashlytics instance using modular API
-      this.crashlytics = getCrashlytics();
-      await setCrashlyticsCollectionEnabled(this.crashlytics, true);
-      this.initialized = true;
-      console.log('[CRASHLYTICS] Initialized successfully');
-      return true;
-    } catch (error) {
-      console.log('[CRASHLYTICS] Initialization error:', error);
-      this.crashlytics = null;
-      this.initialized = false;
-      return false;
-    }
+    return this.loadFirebase();
   }
 
   private isAvailable(): boolean {
@@ -58,7 +54,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setUserId(this.crashlytics!, userId);
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setUserId(this.crashlytics!, userId);
     } catch (error) {
       console.log('[CRASHLYTICS] Set user ID error:', error);
     }
@@ -71,7 +68,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, attributes);
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, attributes);
     } catch (error) {
       console.log('[CRASHLYTICS] Set attributes error:', error);
     }
@@ -84,12 +82,22 @@ export class CrashlyticsService {
     }
 
     try {
-      if (context) {
-        log(this.crashlytics!, context);
-      }
-      recordError(this.crashlytics!, error);
+      import('@react-native-firebase/crashlytics')
+        .then((mod) => {
+          try {
+            if (context) {
+              mod.log(this.crashlytics!, context);
+            }
+            mod.recordError(this.crashlytics!, error);
+          } catch (inner) {
+            console.log('[CRASHLYTICS] Log error failed (inner):', inner);
+          }
+        })
+        .catch((e) => {
+          console.log('[CRASHLYTICS] Log error failed:', e);
+        });
     } catch (e) {
-      console.log('[CRASHLYTICS] Log error failed:', e);
+      console.log('[CRASHLYTICS] Log error failed (import):', e);
     }
   }
 
@@ -100,9 +108,19 @@ export class CrashlyticsService {
     }
 
     try {
-      log(this.crashlytics!, `[${priority.toUpperCase()}] ${message}`);
+      import('@react-native-firebase/crashlytics')
+        .then((mod) => {
+          try {
+            mod.log(this.crashlytics!, `[${priority.toUpperCase()}] ${message}`);
+          } catch (inner) {
+            console.log('[CRASHLYTICS] Log message error (inner):', inner);
+          }
+        })
+        .catch((error) => {
+          console.log('[CRASHLYTICS] Log message error:', error);
+        });
     } catch (error) {
-      console.log('[CRASHLYTICS] Log message error:', error);
+      console.log('[CRASHLYTICS] Log message error (import):', error);
     }
   }
 
@@ -112,7 +130,9 @@ export class CrashlyticsService {
       return;
     }
     // For testing purposes only - DO NOT use in production
-    this.crashlytics!.crash();
+    try {
+      this.crashlytics!.crash();
+    } catch {}
   }
 
   // Custom crash reporting methods specific to NotesAI
@@ -124,7 +144,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         operation_type: operation,
         note_id: noteId,
         error_type: 'note_operation_error',
@@ -142,7 +163,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         network_url: url,
         status_code: statusCode.toString(),
         error_type: 'network_error',
@@ -160,7 +182,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         permission_type: permission,
         error_type: 'permission_error',
       });
@@ -177,7 +200,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         storage_operation: operation,
         error_type: 'storage_error',
       });
@@ -194,7 +218,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         navigation_route: route,
         error_type: 'navigation_error',
       });
@@ -211,7 +236,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         error_type: 'ocr_error',
       });
       this.logError(error, 'OCR processing error');
@@ -227,7 +253,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         error_type: 'audio_recording_error',
       });
       this.logError(error, 'Audio recording error');
@@ -243,7 +270,8 @@ export class CrashlyticsService {
     }
 
     try {
-      await setAttributes(this.crashlytics!, {
+      const mod = await import('@react-native-firebase/crashlytics');
+      await mod.setAttributes(this.crashlytics!, {
         error_type: 'camera_error',
       });
       this.logError(error, 'Camera access error');

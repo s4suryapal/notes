@@ -130,10 +130,23 @@ class CallEndActivity : FragmentActivity() {
             viewPager.adapter = adapter
 
             TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-                tab.text = when (position) {
-                    0 -> "Recent Notes"
-                    1 -> "Quick Actions"
-                    else -> "Tab"
+                when (position) {
+                    0 -> {
+                        tab.setIcon(R.drawable.ic_tab_notes)
+                        tab.contentDescription = "Notes"
+                    }
+                    1 -> {
+                        tab.setIcon(R.drawable.ic_tab_message)
+                        tab.contentDescription = "Messages"
+                    }
+                    2 -> {
+                        tab.setIcon(R.drawable.ic_tab_reminder)
+                        tab.contentDescription = "Reminders"
+                    }
+                    3 -> {
+                        tab.setIcon(R.drawable.ic_tab_actions)
+                        tab.contentDescription = "Actions"
+                    }
                 }
             }.attach()
 

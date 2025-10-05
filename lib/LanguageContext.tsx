@@ -7,6 +7,7 @@ interface LanguageContextType {
   currentLanguage: Language;
   setLanguage: (language: Language) => Promise<void>;
   isFirstLaunch: boolean;
+  isLoading: boolean;
   markFirstLaunchComplete: () => Promise<void>;
   t: (key: string) => string;
 }
@@ -79,6 +80,7 @@ const translations: Record<Language, Record<string, string>> = {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
   const [isFirstLaunch, setIsFirstLaunch] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Load language and first launch status
@@ -90,6 +92,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
 
     setIsFirstLaunch(!firstLaunchComplete);
+    setIsLoading(false);
   }, []);
 
   const setLanguage = async (language: Language) => {
@@ -110,6 +113,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     currentLanguage,
     setLanguage,
     isFirstLaunch,
+    isLoading,
     markFirstLaunchComplete,
     t,
   };

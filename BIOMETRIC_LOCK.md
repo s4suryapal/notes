@@ -12,13 +12,14 @@ Successfully implemented end-to-end biometric authentication for note locking wi
 - Full TypeScript support
 
 ### 2. **Encryption Service** (`lib/encryption.ts`) ✅
-- **Secure key storage**: Uses expo-secure-store
-- **Auto-generated keys**: SHA-256 hashed, unique per device
-- **XOR encryption**: Simple but effective for demo
+- Cipher: AES‑256‑GCM via WebCrypto (`crypto.subtle`)
+- Per‑install 256‑bit key in SecureStore (`notesai_aes_key_v1`)
+- Per‑message 96‑bit IV (random via `crypto.getRandomValues` with Expo Crypto fallback)
+- Payload format: `aesgcm:v1:<ivBase64>:<cipherBase64>`
 - Functions:
-  - `encryptText()` - Encrypt note content
-  - `decryptText()` - Decrypt locked notes
-  - `isEncryptionAvailable()` - Check encryption support
+  - `encryptText()` - Encrypt note content (AES‑GCM)
+  - `decryptText()` - Decrypt locked notes (AES‑GCM)
+  - `isEncryptionAvailable()` - Check AES availability
 
 ### 3. **Biometric Authentication** (`lib/biometric.ts`) ✅
 - **Device detection**: Checks for Face ID/Touch ID/Fingerprint
@@ -103,7 +104,7 @@ Successfully implemented end-to-end biometric authentication for note locking wi
 | Secure Storage | expo-secure-store | v15.0.7 |
 | Encryption | expo-crypto | v15.0.7 |
 | Hashing | SHA-256 | - |
-| Cipher | XOR (demo) | - |
+| Cipher | AES‑256‑GCM | WebCrypto |
 
 ## Files Modified
 
@@ -116,21 +117,13 @@ Successfully implemented end-to-end biometric authentication for note locking wi
 7. `app/(drawer)/index.tsx` - Added lock handler
 8. `app/note/[id].tsx` - Added auth gate on load
 
-## Production Recommendations
+## Production Notes
 
-⚠️ **Current implementation uses XOR encryption (demo purposes)**
-
-For production, upgrade to:
-- **AES-256-GCM encryption** via `react-native-aes-crypto`
-- **PBKDF2 key derivation** for stronger keys
-- **Salt generation** for each encrypted note
-- **IV (Initialization Vector)** for encryption
-- **HMAC verification** to detect tampering
-
-Example:
-```bash
-npm install react-native-aes-crypto
-```
+The app already uses AES‑256‑GCM with per‑note IVs and a device‑stored key. Optional hardening:
+- Add AAD (e.g., note ID) for binding
+- Remote key escrow or user‑provided passphrase (KDF) if needed
+- Ensure WebCrypto is available early in app startup:
+  - Add `import 'expo-standard-web-crypto';` at the app entry so `crypto.subtle` is ready on native.
 
 ## Troubleshooting
 

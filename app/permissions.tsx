@@ -11,17 +11,20 @@ import {
   AppState,
   PermissionsAndroid,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Phone, Layers, Bell, FileText } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useLanguage } from '@/lib/LanguageContext';
+import { setupPersistentNotification } from '@/lib/persistentNotification';
+import BannerAdComponent from '@/components/BannerAdComponent';
 
 const { OverlaySettingsModule } = NativeModules;
 
 export default function PermissionsScreen() {
   const { colors } = useTheme();
-  const { markFirstLaunchComplete, isFirstLaunch, t } = useLanguage();
+  const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [isRequesting, setIsRequesting] = useState(false);
   const [hasOpenedSettings, setHasOpenedSettings] = useState(false);
 
@@ -54,10 +57,18 @@ export default function PermissionsScreen() {
         console.log('📱 [PERMISSIONS] Phone permission after settings:', hasPhone);
 
         if (hasOverlay && hasPhone) {
-          console.log('🎉 [PERMISSIONS] Overlay + Phone granted after settings - finishing onboarding');
+          console.log('🎉 [PERMISSIONS] Overlay + Phone granted after settings - navigating to onboarding');
+
+          // Setup persistent notification now that permissions are granted
+          try {
+            await setupPersistentNotification();
+            console.log('Persistent notification setup completed after settings return');
+          } catch (notifError) {
+            console.log('Failed to setup persistent notification after settings:', notifError);
+          }
+
           setIsRequesting(false);
-          await markFirstLaunchComplete();
-          router.replace('/(drawer)');
+          router.replace('/onboarding');
         } else {
           console.log('⚠️ [PERMISSIONS] Still missing required permission(s):', { hasOverlay, hasPhone });
           setIsRequesting(false);
@@ -70,7 +81,7 @@ export default function PermissionsScreen() {
     return () => {
       subscription?.remove();
     };
-  }, [hasOpenedSettings, markFirstLaunchComplete]);
+  }, [hasOpenedSettings]);
 
   const handleAllow = async () => {
     setIsRequesting(true);
@@ -102,6 +113,16 @@ export default function PermissionsScreen() {
           notificationsGranted = false;
         }
         console.log('Notification permission granted:', notificationsGranted);
+
+        // Setup persistent notification if permission was granted
+        if (notificationsGranted) {
+          try {
+            await setupPersistentNotification();
+            console.log('Persistent notification setup completed');
+          } catch (notifError) {
+            console.log('Failed to setup persistent notification:', notifError);
+          }
+        }
       }
 
       // Step 3: Handle overlay permission - check first, then open settings if needed
@@ -126,10 +147,18 @@ export default function PermissionsScreen() {
               }
             } catch {}
             if (hasPhone) {
+              console.log('🎉 [PERMISSIONS] Overlay + Phone granted - navigating to onboarding');
+
+              // Setup persistent notification now that permissions are granted
+              try {
+                await setupPersistentNotification();
+                console.log('Persistent notification setup completed');
+              } catch (notifError) {
+                console.log('Failed to setup persistent notification:', notifError);
+              }
+
               setIsRequesting(false);
-              console.log('🎉 [PERMISSIONS] Overlay + Phone granted - finishing onboarding');
-              await markFirstLaunchComplete();
-              router.replace('/(drawer)');
+              router.replace('/onboarding');
               return;
             }
           }
@@ -175,35 +204,41 @@ export default function PermissionsScreen() {
           return;
         } catch (overlayError) {
           console.log('Overlay permission error:', overlayError);
-          // Continue to main app even if overlay permission fails
+          // Continue to onboarding even if overlay permission fails
           setIsRequesting(false);
 
-          console.log('🎉 [PERMISSIONS] First launch onboarding complete (overlay failed)');
-          await markFirstLaunchComplete();
+          console.log('📱 [PERMISSIONS] Permissions flow complete (overlay failed) - navigating to onboarding');
 
-          router.replace('/(drawer)');
+          router.replace('/onboarding');
         }
       } else {
         // iOS doesn't need overlay permission
         console.log('iOS - no overlay permission needed');
+
+        // Setup persistent notification (iOS doesn't use it but this is for safety)
+        try {
+          await setupPersistentNotification();
+          console.log('Notification setup completed (iOS)');
+        } catch (notifError) {
+          console.log('Failed to setup notification (iOS):', notifError);
+        }
+
         setIsRequesting(false);
 
-        console.log('🎉 [PERMISSIONS] First launch onboarding complete (iOS)');
-        await markFirstLaunchComplete();
+        console.log('📱 [PERMISSIONS] Permissions flow complete (iOS) - navigating to onboarding');
 
-        router.replace('/(drawer)');
+        router.replace('/onboarding');
       }
 
     } catch (error) {
       console.log('Permission request error:', error);
 
-      // Continue anyway if there's an error
+      // Continue to onboarding anyway if there's an error
       setIsRequesting(false);
 
-      console.log('🎉 [PERMISSIONS] First launch onboarding complete (with error)');
-      await markFirstLaunchComplete();
+      console.log('📱 [PERMISSIONS] Permissions flow complete (with error) - navigating to onboarding');
 
-      router.replace('/(drawer)');
+      router.replace('/onboarding');
     }
   };
 
@@ -276,8 +311,13 @@ export default function PermissionsScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Section */}
-      <View style={[styles.bottomSection, { backgroundColor: colors.background }]}>
+      {/* Bottom Section (contains Allow button and embedded Banner Ad) */}
+      <View
+        style={[
+          styles.bottomSection,
+          { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 8) }
+        ]}
+      >
         {/* Privacy Policy */}
         <View style={styles.privacySection}>
           <Text style={[styles.privacyText, { color: colors.textSecondary }]}>
@@ -300,6 +340,20 @@ export default function PermissionsScreen() {
             {isRequesting ? 'Processing...' : t('allow')}
           </Text>
         </Pressable>
+
+        {/* Banner Ad below button, inside footer */}
+        <View
+          style={[
+            styles.footerAdContainer,
+            { borderTopColor: colors.border, backgroundColor: colors.background }
+          ]}
+        >
+          <BannerAdComponent
+            adType="adaptiveBanner"
+            style={styles.bannerAd}
+            location="permissions"
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -401,5 +455,18 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  footerAdContainer: {
+    marginTop: 12,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 0.5,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  bannerAd: {
+    width: '100%',
+    height: 46,
   },
 });
