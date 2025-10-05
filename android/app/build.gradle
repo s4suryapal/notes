@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
+apply plugin: "com.google.firebase.crashlytics"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
@@ -250,5 +252,57 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+
+    // MMKV for fast key-value storage (used by call-end screen to read notes)
+    implementation 'com.tencent:mmkv:1.3.1'
+
+    // Material Components for TabLayout, Tabs, etc.
+    implementation 'com.google.android.material:material:1.11.0'
+
+    // ViewPager2 for tab swiping
+    implementation 'androidx.viewpager2:viewpager2:1.0.0'
+
+    // RecyclerView (usually included in React Native but explicit for native fragments)
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+
+    // Fragment support
+    implementation 'androidx.fragment:fragment-ktx:1.6.2'
+
+    // Firebase BoM and Firebase AI Logic SDK for Android (Gemini via Google AI)
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+    implementation("com.google.firebase:firebase-ai")
+    // Firebase Remote Config for native flags (use non-KTX for broader compatibility)
+    implementation("com.google.firebase:firebase-config")
+    // Google Mobile Ads Lite SDK (smaller size, no mediation)
+    implementation("com.google.android.gms:play-services-ads-lite:23.2.0") {
+        exclude group: 'com.google.android.gms', module: 'play-services-ads-api'
+    }
+    // Shimmer effect for banner loading placeholders (used in native layout)
+    implementation("com.facebook.shimmer:shimmer:0.5.0")
+    // Lifecycle for App Open Ads (used by AppOpenAdManager via ProcessLifecycleOwner)
+    implementation("androidx.lifecycle:lifecycle-process:2.6.2")
+    // Splash Screen API for Android 12+ (used by MainActivity)
+    implementation("androidx.core:core-splashscreen:1.0.1")
+}
+
+// 📦 Force AdMob Lite version and prevent conflicts
+configurations.all {
+    resolutionStrategy {
+        // Force all dependencies to use AdMob Lite 23.2.0
+        force 'com.google.android.gms:play-services-ads-lite:23.2.0'
+
+        // Exclude the full AdMob SDK that conflicts with Lite
+        eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'com.google.android.gms') {
+                if (details.requested.name == 'play-services-ads') {
+                    details.useTarget group: 'com.google.android.gms', name: 'play-services-ads-lite', version: '23.2.0'
+                }
+                if (details.requested.name == 'play-services-ads-api' && details.requested.version == '24.6.0') {
+                    // Exclude newer incompatible version
+                    details.useTarget group: 'com.google.android.gms', name: 'play-services-ads-lite', version: '23.2.0'
+                }
+            }
+        }
     }
 }

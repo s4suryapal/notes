@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "152052704463",
+    "project_id": "notesai-61099",
+    "storage_bucket": "notesai-61099.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:152052704463:android:5db5a92ee08be5b15243ba",
+        "android_client_info": {
+          "package_name": "com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5F8GhGHKBamnrjxuHyLrEoqYRMJj46c8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

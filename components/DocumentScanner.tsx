@@ -9,7 +9,7 @@ import {
   Platform,
   PermissionsAndroid,
 } from 'react-native';
-import DocumentScanner from 'react-native-document-scanner-plugin';
+import DocumentScannerPlugin from 'react-native-document-scanner-plugin';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 
 export interface DocumentScanResult {
@@ -47,7 +47,7 @@ export default function DocumentScanner({ visible, onClose, onScanComplete }: Do
       setIsProcessing(true);
 
       // Scan document with automatic edge detection and perspective correction
-      const { scannedImages } = await DocumentScanner.scanDocument({
+      const { scannedImages } = await DocumentScannerPlugin.scanDocument({
         maxNumDocuments: 5, // Allow up to 5 pages
         letUserAdjustCrop: true, // Let user adjust detected edges
         responseType: 'imageFilePath', // Get file paths

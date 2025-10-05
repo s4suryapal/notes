@@ -12,6 +12,7 @@ import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
 import { NoteActionsSheet } from '@/components/NoteActionsSheet';
 import { getBackgroundById } from '@/components/BackgroundPicker';
+import BannerAdComponent from '@/components/BannerAdComponent';
 import { useNotes } from '@/lib/NotesContext';
 import { useToast } from '@/lib/ToastContext';
 import { ViewMode, Note, SortBy } from '@/types';
@@ -657,6 +658,15 @@ export default function HomeScreen() {
         />
       </View>
 
+      {/* Banner Ad at bottom */}
+      <View style={styles.bannerAdContainer}>
+        <BannerAdComponent
+          adType="adaptiveBanner"
+          location="home"
+          height={50}
+        />
+      </View>
+
       {!selectionMode && <FAB onPress={handleCreateNote} />}
 
       {/* Bulk Actions Bottom Bar */}
@@ -894,6 +904,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.light.background,
+  },
+  bannerAdContainer: {
+    width: '100%',
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.xs,
     backgroundColor: Colors.light.background,
   },
   header: {

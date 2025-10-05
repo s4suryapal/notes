@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
@@ -6,18 +6,66 @@ import { DeviceEventEmitter, Platform } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '@/lib/ThemeContext';
+import { LanguageProvider } from '@/lib/LanguageContext';
 import { NotesProvider } from '@/lib/NotesContext';
 import { ToastProvider } from '@/lib/ToastContext';
 import { ErrorBoundary, Onboarding } from '@/components';
 import { setupPersistentNotification, handleNotificationResponse } from '@/lib/persistentNotification';
 import { isOnboardingCompleted, completeOnboarding } from '@/lib/storage';
 import NativeSplashScreen from '@/components/NativeSplashScreen';
+import analytics from '@/services/analytics';
+import crashlytics from '@/services/crashlytics';
+import { initGlobalErrorHandler } from '@/services/globalErrorHandler';
+import admobService from '@/services/admob';
 
 export default function RootLayout() {
   useFrameworkReady();
   const router = useRouter();
+  const pathname = usePathname();
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Initialize Firebase services (Analytics, Crashlytics, AdMob)
+  useEffect(() => {
+    const initFirebaseServices = async () => {
+      try {
+        // Initialize Crashlytics first (for error reporting)
+        await crashlytics.initialize();
+        console.log('[FIREBASE] Crashlytics initialized');
+
+        // Initialize global error handler
+        initGlobalErrorHandler();
+        console.log('[FIREBASE] Global error handler initialized');
+
+        // Initialize Analytics
+        await analytics.initialize();
+        await analytics.logAppOpen();
+        console.log('[FIREBASE] Analytics initialized');
+
+        // Initialize AdMob (non-blocking)
+        admobService.initialize().catch(error => {
+          console.log('[ADMOB] Initialization failed:', error);
+        });
+        console.log('[ADMOB] AdMob initialization started');
+      } catch (error) {
+        console.log('[FIREBASE] Initialization failed:', error);
+      }
+    };
+
+    initFirebaseServices();
+  }, []);
+
+  // Log screen views on route changes
+  useEffect(() => {
+    try {
+      if (pathname != null) {
+        const screenName = String(pathname).replace(/^\//, '') || 'home';
+        analytics.logScreenView(screenName);
+      }
+    } catch (error) {
+      console.log('[ANALYTICS] Screen view logging failed:', error);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     // Setup persistent notification on app start (asks for permission if needed)
@@ -111,24 +159,29 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <ThemeProvider>
-          <ToastProvider>
-            <NotesProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(drawer)" />
-                <Stack.Screen name="note/[id]" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="+not-found" />
-              </Stack>
-              <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
+        <LanguageProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <NotesProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="language-selection" />
+                  <Stack.Screen name="permissions" />
+                  <Stack.Screen name="(drawer)" />
+                  <Stack.Screen name="note/[id]" options={{ presentation: 'modal' }} />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
 
-              {/* Onboarding Modal */}
-              <Onboarding
-                visible={showOnboarding}
-                onComplete={handleOnboardingComplete}
-              />
-            </NotesProvider>
-          </ToastProvider>
-        </ThemeProvider>
+                {/* Onboarding Modal */}
+                <Onboarding
+                  visible={showOnboarding}
+                  onComplete={handleOnboardingComplete}
+                />
+              </NotesProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </LanguageProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );

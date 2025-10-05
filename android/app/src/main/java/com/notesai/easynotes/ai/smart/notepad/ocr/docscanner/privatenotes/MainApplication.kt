@@ -2,6 +2,7 @@ package com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes
 
 import android.app.Application
 import android.content.res.Configuration
+import android.util.Log
 
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
@@ -19,6 +20,19 @@ import com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes.BuildC
 
 class MainApplication : Application(), ReactApplication {
 
+  companion object {
+    private const val TAG = "MainApplication"
+
+    // Test ad unit ID (use in development)
+    private const val TEST_AD_UNIT_ID = "ca-app-pub-3940256099942544/9257395921"
+
+    // Production ad unit ID (replace with your actual ID from AdMob console)
+    private const val PROD_AD_UNIT_ID = "ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyyyyyy"
+  }
+
+  // App Open Ad Manager
+  private lateinit var appOpenAdManager: AppOpenAdManager
+
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
       this,
       object : DefaultReactNativeHost(this) {
@@ -26,6 +40,9 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
+              add(OverlaySettingsPackage())
+              add(AppControlPackage())
+              add(FirebaseAIPackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
@@ -41,11 +58,30 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
       ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
     } catch (e: IllegalArgumentException) {
       ReleaseLevel.STABLE
     }
+
+    // Initialize notification channels (Android 8.0+)
+    // Following Google's best practice: Create channels once at app startup
+    NotificationChannelManager.createNotificationChannels(this)
+    Log.d(TAG, "🔔 Notification channels initialized")
+
+    // Initialize App Open Ad Manager following Google guidelines
+    val adUnitId = if (BuildConfig.DEBUG) TEST_AD_UNIT_ID else PROD_AD_UNIT_ID
+    appOpenAdManager = AppOpenAdManager(this, adUnitId)
+
+    // Increment launch count (for ad display logic)
+    appOpenAdManager.incrementLaunchCount()
+
+    // Preload app open ad (will only load if launch count is sufficient)
+    appOpenAdManager.preloadAd()
+
+    Log.d(TAG, "📺 App Open Ad Manager initialized")
+
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
   }

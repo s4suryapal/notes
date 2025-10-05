@@ -9,18 +9,43 @@
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+  <!-- Android 13+ notification runtime permission -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <!-- Reminder system permissions -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+  <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+  <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  <!-- Boot completed permission needed to reschedule reminders after device reboot -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
+    <!-- Clock intents visibility so we don't need vendor package names -->
+    <intent>
+      <action android:name="android.intent.action.SET_ALARM"/>
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.SHOW_ALARMS"/>
+    </intent>
   </queries>
-  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
+  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false" android:resizeableActivity="true">
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
+
+    <!-- AdMob Configuration -->
+    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" tools:replace="android:value"/>
+    <meta-data android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING" android:value="true" tools:replace="android:value"/>
+    <meta-data android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION" android:value="true" tools:replace="android:value"/>
+
+    <!-- Firebase Cloud Messaging Configuration -->
+    <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_ic_notification" tools:replace="android:resource" />
+    <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/colorAccent" tools:replace="android:resource" />
+    <activity android:name=".MainActivity" android:label="@string/in_app_name" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize|screenLayout" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait" android:alwaysRetainTaskState="true" android:excludeFromRecents="false" android:stateNotNeeded="false" android:clearTaskOnLaunch="false" android:noHistory="false" android:finishOnTaskLaunch="false" android:allowTaskReparenting="false" android:resizeableActivity="true" android:supportsPictureInPicture="false">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
@@ -33,5 +58,57 @@
         <data android:scheme="exp+notesai"/>
       </intent-filter>
     </activity>
+
+    <!-- Call End Activity - Primary native instant response screen -->
+    <!-- Supports multi-window mode and window size classes for responsive UI -->
+    <activity
+      android:name=".CallEndActivity"
+      android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize|screenLayout"
+      android:exported="false"
+      android:launchMode="singleTop"
+      android:excludeFromRecents="true"
+      android:taskAffinity=""
+      android:theme="@style/AppTheme"
+      android:windowSoftInputMode="adjustResize"
+      android:resizeableActivity="true"
+      android:supportsPictureInPicture="false"
+      android:label="@string/in_app_name" />
+
+    <!-- Call Detection BroadcastReceiver -->
+    <receiver
+      android:name=".CallReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.PHONE_STATE" />
+      </intent-filter>
+    </receiver>
+
+    <!-- Call End Service - Foreground service for call end screen -->
+    <service
+      android:name=".CallEndService"
+      android:exported="false" />
+
+    <!-- Reminder Receiver for scheduled notifications -->
+    <!-- Following Google's notification best practices -->
+    <receiver
+      android:name=".ReminderReceiver"
+      android:exported="false" />
+
+    <!-- Reminder Action Receiver for notification action buttons -->
+    <!-- Handles "Mark Done" and "Snooze" actions -->
+    <receiver
+      android:name=".ReminderActionReceiver"
+      android:exported="false" />
+
+    <!-- Boot Receiver to reschedule reminders after device reboot -->
+    <receiver
+      android:name=".BootReceiver"
+      android:exported="false"
+      android:enabled="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+      </intent-filter>
+    </receiver>
+
   </application>
 </manifest>

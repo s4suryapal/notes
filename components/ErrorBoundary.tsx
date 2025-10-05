@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TriangleAlert as AlertTriangle, RefreshCw } from 'lucide-react-native';
+import crashlytics from '@/services/crashlytics';
 
 interface Props {
   children: React.ReactNode;
@@ -21,14 +22,19 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error for debugging
+  async componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
 
-    // In a production app, you would report this to a service like Sentry or Crashlytics
-    // For now, we'll just log it
-    if (__DEV__) {
-      console.error('Component stack:', errorInfo.componentStack);
+    // Report error to Crashlytics
+    try {
+      await crashlytics.setUserAttributes({
+        error_boundary: 'true',
+        component_stack: errorInfo.componentStack?.substring(0, 100) || 'unknown',
+      });
+      crashlytics.logError(error, 'ErrorBoundary caught error');
+      console.log('[ERROR_BOUNDARY] Error reported to Crashlytics');
+    } catch (e) {
+      console.log('[ERROR_BOUNDARY] Failed to report error to Crashlytics:', e);
     }
   }
 
