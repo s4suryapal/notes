@@ -31,7 +31,7 @@
                 android:id="@+id/actionIcon"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:text="📝"
+                android:text="📞"
                 android:textSize="20sp"
                 android:gravity="center" />
 
@@ -42,7 +42,7 @@
             android:id="@+id/actionLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Create Note"
+            android:text="Call Back"
             android:textSize="11sp"
             android:textStyle="bold"
             android:textColor="#333333"

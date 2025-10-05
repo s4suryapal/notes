@@ -6,6 +6,40 @@
     android:orientation="vertical"
     android:background="#F8F9FA">
 
+    <!-- Compact Header with Customize Button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:background="@android:color/white"
+        android:elevation="1dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Quick Actions"
+            android:textColor="#212121"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btnCustomize"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_settings_24"
+            android:tint="@color/colorPrimary"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Customize actions" />
+
+    </LinearLayout>
+
     <!-- Actions Grid Container -->
     <ScrollView
         android:layout_width="match_parent"
@@ -19,7 +53,7 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <!-- 3-Column Quick Actions Grid -->
+            <!-- 3-Column Quick Actions Grid (up to 9 items) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/quickActionsGrid"
                 android:layout_width="match_parent"
@@ -30,7 +64,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Quick actions to create notes"
+                android:text="Tap the settings icon to customize your quick actions"
                 android:textSize="12sp"
                 android:textColor="#999999"
                 android:gravity="center"

@@ -69,6 +69,23 @@ class NotesFragment : Fragment() {
             openNoteInMainApp(noteId)
         }
         notesRecyclerView.adapter = notesAdapter
+
+        // Setup quick action buttons
+        view.findViewById<View>(R.id.btnTextNote)?.setOnClickListener {
+            createNewNote("text")
+        }
+
+        view.findViewById<View>(R.id.btnChecklistNote)?.setOnClickListener {
+            createNewNote("checklist")
+        }
+
+        view.findViewById<View>(R.id.btnAudioNote)?.setOnClickListener {
+            createNewNote("audio")
+        }
+
+        view.findViewById<View>(R.id.btnPhotoNote)?.setOnClickListener {
+            createNewNote("photo")
+        }
     }
 
     private fun loadNotes() {
@@ -157,6 +174,20 @@ class NotesFragment : Fragment() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("noteId", noteId)
                 putExtra("action", "open_note")
+            }
+            startActivity(intent)
+            activity?.finish()
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun createNewNote(noteType: String) {
+        try {
+            val intent = Intent(requireContext(), MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("action", "create_note")
+                putExtra("noteType", noteType)
+                putExtra("phoneNumber", phoneNumber)
             }
             startActivity(intent)
             activity?.finish()

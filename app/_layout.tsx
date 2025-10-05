@@ -212,6 +212,8 @@ export default function RootLayout() {
 
     // Listen for native Android notification actions
     let nativeSubscription: any;
+    let createNoteSubscription: any;
+    let openNoteSubscription: any;
     if (Platform.OS === 'android') {
       nativeSubscription = DeviceEventEmitter.addListener('onNotificationAction', (actionType: string) => {
         console.log('Native notification action:', actionType);
@@ -233,12 +235,50 @@ export default function RootLayout() {
             break;
         }
       });
+
+      // Listen for create note action from CallEndActivity
+      createNoteSubscription = DeviceEventEmitter.addListener('onCreateNote', (noteType: string) => {
+        console.log('Create note from CallEnd:', noteType);
+        switch (noteType) {
+          case 'text':
+            router.push('/note/new');
+            break;
+          case 'checklist':
+            router.push('/note/new?mode=checklist');
+            break;
+          case 'audio':
+            router.push('/note/new?mode=audio');
+            break;
+          case 'photo':
+            router.push('/note/new?mode=photo');
+            break;
+          case 'drawing':
+            router.push('/note/new?mode=drawing');
+            break;
+          default:
+            router.push('/note/new');
+        }
+      });
+
+      // Listen for open note action from CallEndActivity
+      openNoteSubscription = DeviceEventEmitter.addListener('onOpenNote', (noteId: string) => {
+        console.log('Open note from CallEnd:', noteId);
+        if (noteId) {
+          router.push(`/note/${noteId}`);
+        }
+      });
     }
 
     return () => {
       subscription.remove();
       if (nativeSubscription) {
         nativeSubscription.remove();
+      }
+      if (createNoteSubscription) {
+        createNoteSubscription.remove();
+      }
+      if (openNoteSubscription) {
+        openNoteSubscription.remove();
       }
     };
   }, []);

@@ -1,6 +1,7 @@
 package com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes
 import expo.modules.splashscreen.SplashScreenManager
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -15,6 +16,7 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 import expo.modules.ReactActivityDelegateWrapper
 import com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes.BuildConfig
@@ -139,6 +141,46 @@ class MainActivity : ReactActivity() {
     Handler(Looper.getMainLooper()).postDelayed({
       keepSplashOnScreen = false
     }, 500)
+
+    // Handle intent from CallEndActivity
+    handleIntent(intent)
+  }
+
+  override fun onNewIntent(intent: Intent?) {
+    super.onNewIntent(intent)
+    intent?.let { handleIntent(it) }
+  }
+
+  private fun handleIntent(intent: Intent) {
+    val action = intent.getStringExtra("action")
+    val noteType = intent.getStringExtra("noteType")
+    val noteId = intent.getStringExtra("noteId")
+    val phoneNumber = intent.getStringExtra("phoneNumber")
+
+    if (action != null) {
+      // Wait for React Native context to be ready
+      Handler(Looper.getMainLooper()).postDelayed({
+        try {
+          val reactContext = reactInstanceManager?.currentReactContext
+          if (reactContext != null) {
+            when (action) {
+              "create_note" -> {
+                reactContext
+                  .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                  ?.emit("onCreateNote", noteType ?: "text")
+              }
+              "open_note" -> {
+                reactContext
+                  .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                  ?.emit("onOpenNote", noteId)
+              }
+            }
+          }
+        } catch (e: Exception) {
+          e.printStackTrace()
+        }
+      }, 600)
+    }
   }
 
   /**

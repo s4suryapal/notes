@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Customize Quick Actions"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="16dp"
+        android:gravity="center" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select up to 6 actions to show as quick buttons:"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Available Actions List -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="300dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Communication Actions -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Communication"
+                android:textStyle="bold"
+                android:textColor="#2196F3"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="8dp" />
+
+            <CheckBox
+                android:id="@+id/cbCallBack"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📞 Open Dialer"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbSendSMS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💬 Send SMS"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbSendWhatsApp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📱 Wh4t54pp"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbTelegram"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📨 T3l3gr4m"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbSendEmail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📧 Send Email"
+                android:textSize="16sp" />
+
+            <!-- System &amp; Info -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="System &amp; Info"
+                android:textStyle="bold"
+                android:textColor="#2196F3"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="16dp" />
+
+            <CheckBox
+                android:id="@+id/cbAddContact"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="👤 Add to Contacts"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbBlockNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="👻 5n4pch4t"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbShareContact"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📷 1n5t4gr4m"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbOpenBrowser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🌐 Open Browser"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbFacebook"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📘 F4c3b00k"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbYoutube"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📺 Y0uTub3"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbTiktok"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🎵 T1kT0k"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbTwitter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="❌ X"
+                android:textSize="16sp" />
+
+            <!-- Productivity -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Productivity"
+                android:textStyle="bold"
+                android:textColor="#2196F3"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="16dp" />
+
+            <CheckBox
+                android:id="@+id/cbSetReminder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⏰ Set Reminder"
+                android:textSize="16sp" />
+
+
+            <CheckBox
+                android:id="@+id/cbScheduleMeeting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📅 Schedule Meeting"
+                android:textSize="16sp" />
+
+            <CheckBox
+                android:id="@+id/cbSetAlarm"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⏲️ Set Alarm (Call back)"
+                android:textSize="16sp" />
+
+            <!-- App Features -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="App Features"
+                android:textStyle="bold"
+                android:textColor="#2196F3"
+                android:layout_marginBottom="8dp"
+                android:layout_marginTop="16dp" />
+
+
+
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Selection Counter -->
+    <TextView
+        android:id="@+id/tvSelectionCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0/6 actions selected"
+        android:textSize="12sp"
+        android:textColor="#666666"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp" />
+
+</LinearLayout>
