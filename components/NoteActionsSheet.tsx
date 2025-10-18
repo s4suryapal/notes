@@ -7,6 +7,7 @@ import { Paths } from 'expo-file-system';
 import ViewShot from 'react-native-view-shot';
 import { Star, Archive, Share, Info, Eye, Clock, X, FolderInput, Trash2, FileText, FileDown, Image as ImageIcon, Copy, Printer, Music, Lock, Unlock } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { Note, Category } from '@/types';
 
 interface NoteActionsSheetProps {
@@ -58,6 +59,8 @@ export function NoteActionsSheet({
   onMoveToCategory,
   categories = [],
 }: NoteActionsSheetProps) {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const [showReadingMode, setShowReadingMode] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -88,6 +91,11 @@ export function NoteActionsSheet({
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to share');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       const message = note.title
         ? `${note.title}\n\n${plainText}`
@@ -107,6 +115,11 @@ export function NoteActionsSheet({
 
   const handleReadingMode = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (note.is_locked) {
+      Alert.alert('Locked', 'Unlock this note to read');
+      onLock?.();
+      return;
+    }
     setShowReadingMode(true);
     onClose();
   };
@@ -133,6 +146,11 @@ export function NoteActionsSheet({
 
   const handleExport = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (note.is_locked) {
+      Alert.alert('Locked', 'Unlock this note to export');
+      onLock?.();
+      return;
+    }
     // Don't close parent modal immediately - set state first
     setShowExportOptions(true);
     // Close parent modal after a small delay to prevent race condition
@@ -143,6 +161,11 @@ export function NoteActionsSheet({
 
   const handleExportText = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to export');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       const content = note.title
         ? `${note.title}\n\n${plainText}`
@@ -168,6 +191,11 @@ export function NoteActionsSheet({
 
   const handleExportPDF = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to export');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       const html = `
         <html>
@@ -215,6 +243,11 @@ export function NoteActionsSheet({
 
   const handleExportMarkdown = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to export');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       let content = '';
 
@@ -244,6 +277,11 @@ export function NoteActionsSheet({
 
   const handleExportImage = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to export');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       const html = `
         <html>
@@ -293,6 +331,11 @@ export function NoteActionsSheet({
 
   const handleCopyToClipboard = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to copy');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       const content = note.title
         ? `${note.title}\n\n${plainText}`
@@ -309,6 +352,11 @@ export function NoteActionsSheet({
 
   const handlePrint = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to print');
+        onLock?.();
+        return;
+      }
       const plainText = stripHtml(note.body);
       const html = `
         <html>
@@ -349,6 +397,11 @@ export function NoteActionsSheet({
 
   const handleExportAudio = async () => {
     try {
+      if (note.is_locked) {
+        Alert.alert('Locked', 'Unlock this note to export audio');
+        onLock?.();
+        return;
+      }
       if (!note.audio_recordings || note.audio_recordings.length === 0) {
         Alert.alert('No Audio', 'This note does not contain any audio recordings');
         setShowExportOptions(false);
@@ -458,8 +511,8 @@ export function NoteActionsSheet({
         onRequestClose={onClose}
         statusBarTranslucent
       >
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.menu} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.overlay, { backgroundColor: C.overlay }]} onPress={onClose}>
+          <Pressable style={[styles.menu, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
             {menuOptions.map((option, index) => (
               <TouchableOpacity
                 key={index}
@@ -467,8 +520,8 @@ export function NoteActionsSheet({
                 onPress={option.onPress}
                 activeOpacity={0.7}
               >
-                <option.icon size={20} color={Colors.light.text} />
-                <Text style={styles.menuOptionText}>{option.label}</Text>
+                <option.icon size={20} color={C.text} />
+                <Text style={[styles.menuOptionText, { color: C.text }]}>{option.label}</Text>
               </TouchableOpacity>
             ))}
           </Pressable>
@@ -482,18 +535,18 @@ export function NoteActionsSheet({
         onRequestClose={() => setShowReadingMode(false)}
         statusBarTranslucent
       >
-        <View style={styles.readingModeContainer}>
-          <View style={styles.readingModeHeader}>
-            <Text style={styles.readingModeTitle}>Reading Mode</Text>
+        <View style={[styles.readingModeContainer, { backgroundColor: C.background }]}>
+          <View style={[styles.readingModeHeader, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
+            <Text style={[styles.readingModeTitle, { color: C.text }]}>Reading Mode</Text>
             <TouchableOpacity onPress={() => setShowReadingMode(false)}>
-              <X size={24} color={Colors.light.text} />
+              <X size={24} color={C.text} />
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.readingModeContent} contentContainerStyle={styles.readingModeContentContainer}>
             {note.title && (
-              <Text style={styles.readingModeNoteTitle}>{note.title}</Text>
+              <Text style={[styles.readingModeNoteTitle, { color: C.text }]}>{note.title}</Text>
             )}
-            <Text style={styles.readingModeBody}>{stripHtml(note.body)}</Text>
+            <Text style={[styles.readingModeBody, { color: C.text }]}>{stripHtml(note.body)}</Text>
           </ScrollView>
         </View>
       </Modal>
@@ -506,12 +559,12 @@ export function NoteActionsSheet({
         onRequestClose={() => setShowReminders(false)}
         statusBarTranslucent
       >
-        <Pressable style={styles.reminderOverlay} onPress={() => setShowReminders(false)}>
-          <Pressable style={styles.reminderModal} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.reminderOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowReminders(false)}>
+          <Pressable style={[styles.reminderModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.reminderHeader}>
-              <Text style={styles.reminderTitle}>Set Reminder</Text>
+              <Text style={[styles.reminderTitle, { color: C.text }]}>Set Reminder</Text>
               <TouchableOpacity onPress={() => setShowReminders(false)}>
-                <X size={24} color={Colors.light.text} />
+                <X size={24} color={C.text} />
               </TouchableOpacity>
             </View>
 
@@ -530,8 +583,8 @@ export function NoteActionsSheet({
                   setShowReminders(false);
                 }}
               >
-                <Clock size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Tomorrow morning</Text>
+                <Clock size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Tomorrow morning</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -548,8 +601,8 @@ export function NoteActionsSheet({
                   setShowReminders(false);
                 }}
               >
-                <Clock size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Next week</Text>
+                <Clock size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Next week</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -563,8 +616,8 @@ export function NoteActionsSheet({
                   setShowReminders(false);
                 }}
               >
-                <Clock size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Custom date & time</Text>
+                <Clock size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Custom date & time</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -579,12 +632,12 @@ export function NoteActionsSheet({
         onRequestClose={() => setShowCategoryPicker(false)}
         statusBarTranslucent
       >
-        <Pressable style={styles.reminderOverlay} onPress={() => setShowCategoryPicker(false)}>
-          <Pressable style={styles.reminderModal} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.reminderOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowCategoryPicker(false)}>
+          <Pressable style={[styles.reminderModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.reminderHeader}>
-              <Text style={styles.reminderTitle}>Move to Category</Text>
+              <Text style={[styles.reminderTitle, { color: C.text }]}>Move to Category</Text>
               <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
-                <X size={24} color={Colors.light.text} />
+                <X size={24} color={C.text} />
               </TouchableOpacity>
             </View>
 
@@ -597,9 +650,9 @@ export function NoteActionsSheet({
                 ]}
                 onPress={() => handleCategorySelect(null)}
               >
-                <View style={[styles.categoryDot, { backgroundColor: Colors.light.textTertiary }]} />
-                <Text style={styles.categoryOptionText}>None</Text>
-                {!note.category_id && <X size={16} color={Colors.light.primary} />}
+                <View style={[styles.categoryDot, { backgroundColor: C.textTertiary }]} />
+                <Text style={[styles.categoryOptionText, { color: C.text }]}>None</Text>
+                {!note.category_id && <X size={16} color={C.primary} />}
               </TouchableOpacity>
 
               {/* Categories */}
@@ -613,8 +666,8 @@ export function NoteActionsSheet({
                   onPress={() => handleCategorySelect(category.id)}
                 >
                   <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
-                  <Text style={styles.categoryOptionText}>{category.name}</Text>
-                  {note.category_id === category.id && <X size={16} color={Colors.light.primary} />}
+                  <Text style={[styles.categoryOptionText, { color: C.text }]}>{category.name}</Text>
+                  {note.category_id === category.id && <X size={16} color={C.primary} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -630,12 +683,12 @@ export function NoteActionsSheet({
         onRequestClose={() => setShowExportOptions(false)}
         statusBarTranslucent
       >
-        <Pressable style={styles.reminderOverlay} onPress={() => setShowExportOptions(false)}>
-          <Pressable style={styles.reminderModal} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.reminderOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowExportOptions(false)}>
+          <Pressable style={[styles.reminderModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.reminderHeader}>
-              <Text style={styles.reminderTitle}>Export Note</Text>
+              <Text style={[styles.reminderTitle, { color: C.text }]}>Export Note</Text>
               <TouchableOpacity onPress={() => setShowExportOptions(false)}>
-                <X size={24} color={Colors.light.text} />
+                <X size={24} color={C.text} />
               </TouchableOpacity>
             </View>
 
@@ -644,48 +697,48 @@ export function NoteActionsSheet({
                 style={styles.reminderOption}
                 onPress={handleExportPDF}
               >
-                <FileDown size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Export as PDF</Text>
+                <FileDown size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Export as PDF</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.reminderOption}
                 onPress={handleExportText}
               >
-                <FileText size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Export as Text (.txt)</Text>
+                <FileText size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Export as Text (.txt)</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.reminderOption}
                 onPress={handleExportMarkdown}
               >
-                <FileText size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Export as Markdown (.md)</Text>
+                <FileText size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Export as Markdown (.md)</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.reminderOption}
                 onPress={handleExportImage}
               >
-                <ImageIcon size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Export as Image</Text>
+                <ImageIcon size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Export as Image</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.reminderOption}
                 onPress={handleCopyToClipboard}
               >
-                <Copy size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Copy to Clipboard</Text>
+                <Copy size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Copy to Clipboard</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.reminderOption}
                 onPress={handlePrint}
               >
-                <Printer size={20} color={Colors.light.text} />
-                <Text style={styles.reminderOptionText}>Print</Text>
+                <Printer size={20} color={C.text} />
+                <Text style={[styles.reminderOptionText, { color: C.text }]}>Print</Text>
               </TouchableOpacity>
 
               {note.audio_recordings && note.audio_recordings.length > 0 && (
@@ -693,8 +746,8 @@ export function NoteActionsSheet({
                   style={styles.reminderOption}
                   onPress={handleExportAudio}
                 >
-                  <Music size={20} color={Colors.light.text} />
-                  <Text style={styles.reminderOptionText}>
+                  <Music size={20} color={C.text} />
+                  <Text style={[styles.reminderOptionText, { color: C.text }]}>
                     Export Audio {note.audio_recordings.length > 1 ? `(${note.audio_recordings.length})` : ''}
                   </Text>
                 </TouchableOpacity>

@@ -33,31 +33,30 @@ async function getRandomBytes(len: number): Promise<Uint8Array> {
 const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
 function bytesToBase64(bytes: Uint8Array): string {
-  let result = '';
-  let i = 0;
-  while (i < bytes.length) {
-    const a = bytes[i++] ?? 0;
-    const b = bytes[i++] ?? 0;
-    const c = bytes[i++] ?? 0;
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i] ?? 0;
+    const bAvail = i + 1 < bytes.length;
+    const cAvail = i + 2 < bytes.length;
+    const b = bAvail ? bytes[i + 1]! : 0;
+    const c = cAvail ? bytes[i + 2]! : 0;
     const triplet = (a << 16) | (b << 8) | c;
-    result += B64_ALPHABET[(triplet >> 18) & 0x3f];
-    result += B64_ALPHABET[(triplet >> 12) & 0x3f];
-    result += i - 1 > bytes.length ? '=' : B64_ALPHABET[(triplet >> 6) & 0x3f];
-    result += i > bytes.length ? '=' : B64_ALPHABET[triplet & 0x3f];
+    out += B64_ALPHABET[(triplet >> 18) & 0x3f];
+    out += B64_ALPHABET[(triplet >> 12) & 0x3f];
+    out += bAvail ? B64_ALPHABET[(triplet >> 6) & 0x3f] : '=';
+    out += cAvail ? B64_ALPHABET[triplet & 0x3f] : '=';
   }
-  return result;
+  return out;
 }
 
 function base64ToBytes(b64: string): Uint8Array {
-  // Clean invalid chars
   const clean = b64.replace(/[^A-Za-z0-9+/=]/g, '');
   const out: number[] = [];
-  let i = 0;
-  while (i < clean.length) {
-    const a = B64_ALPHABET.indexOf(clean.charAt(i++));
-    const b = B64_ALPHABET.indexOf(clean.charAt(i++));
-    const c = B64_ALPHABET.indexOf(clean.charAt(i++));
-    const d = B64_ALPHABET.indexOf(clean.charAt(i++));
+  for (let i = 0; i < clean.length; i += 4) {
+    const a = B64_ALPHABET.indexOf(clean[i] ?? '=');
+    const b = B64_ALPHABET.indexOf(clean[i + 1] ?? '=');
+    const c = B64_ALPHABET.indexOf(clean[i + 2] ?? '=');
+    const d = B64_ALPHABET.indexOf(clean[i + 3] ?? '=');
     const triplet = (a << 18) | (b << 12) | ((c & 0x3f) << 6) | (d & 0x3f);
     out.push((triplet >> 16) & 0xff);
     if (c !== 64) out.push((triplet >> 8) & 0xff);
@@ -79,13 +78,13 @@ async function getOrCreateAesKey(): Promise<CryptoKey> {
   // Try existing
   const stored = await SecureStore.getItemAsync(AES_KEY_V1);
   if (stored) {
-    const raw = base64ToArrayBuffer(stored);
-    return subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    const rawBytes = base64ToBytes(stored);
+    return subtle.importKey('raw', rawBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   }
   // Generate 32-byte key
-  const rawKey = getRandomBytes(32);
+  const rawKey = await getRandomBytes(32);
   const key = await subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-  await SecureStore.setItemAsync(AES_KEY_V1, arrayBufferToBase64(rawKey.buffer));
+  await SecureStore.setItemAsync(AES_KEY_V1, bytesToBase64(rawKey));
   return key;
 }
 
@@ -130,19 +129,19 @@ export async function decryptText(encryptedText: string): Promise<string> {
       return '';
     }
 
-    // AES-256-GCM path: detect payload prefix
+    // AES-256-GCM path: detect payload prefix.
+    // If payload is not AES, treat it as plaintext (soft-lock/legacy).
     if (!encryptedText.startsWith('aesgcm:v1:')) {
-      // Backward compatibility removed per product decision
-      throw new Error('Unsupported ciphertext format');
+      return encryptedText;
     }
     if (!hasSubtleCrypto()) throw new Error('AES-GCM not available on this device');
     const parts = encryptedText.split(':');
     if (parts.length !== 4) throw new Error('Invalid AES payload');
-    const iv = base64ToArrayBuffer(parts[2]);
-    const cipher = base64ToArrayBuffer(parts[3]);
+    const iv = base64ToBytes(parts[2]);
+    const cipher = base64ToBytes(parts[3]);
     const subtle = globalThis.crypto!.subtle;
     const key = await getOrCreateAesKey();
-    const plainBuf = await subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, cipher);
+    const plainBuf = await subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
     return new TextDecoder().decode(plainBuf);
   } catch (error) {
     console.error('Error decrypting text:', error);

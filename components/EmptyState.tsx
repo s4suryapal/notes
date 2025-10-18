@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface EmptyStateProps {
   title?: string;
@@ -14,18 +15,20 @@ export function EmptyState({
   actionText,
   onActionPress,
 }: EmptyStateProps) {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   return (
     <View style={styles.container}>
       <View style={styles.illustration}>
-        <View style={[styles.noteIcon, styles.noteIcon1]} />
-        <View style={[styles.noteIcon, styles.noteIcon2]} />
-        <View style={[styles.noteIcon, styles.noteIcon3]} />
+        <View style={[styles.noteIcon, { backgroundColor: C.surface, borderColor: C.border }, styles.noteIcon1]} />
+        <View style={[styles.noteIcon, { backgroundColor: C.surface, borderColor: C.primary }, styles.noteIcon2]} />
+        <View style={[styles.noteIcon, { backgroundColor: C.surface, borderColor: C.accent }, styles.noteIcon3]} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.title, { color: C.text }]}>{title}</Text>
+      <Text style={[styles.message, { color: C.textSecondary }]}>{message}</Text>
       {actionText && onActionPress && (
-        <TouchableOpacity style={styles.button} onPress={onActionPress} activeOpacity={0.8}>
-          <Text style={styles.buttonText}>{actionText}</Text>
+        <TouchableOpacity style={[styles.button, { backgroundColor: C.primary }]} onPress={onActionPress} activeOpacity={0.8}>
+          <Text style={[styles.buttonText, { color: C.surface }]}>{actionText}</Text>
         </TouchableOpacity>
       )}
     </View>

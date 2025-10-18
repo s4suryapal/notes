@@ -44,6 +44,11 @@ class AppOpenAdManager(
     private var loadTime: Long = 0
     private var isShowingAd = false
     private var currentActivity: Activity? = null
+    private var isFirstStart = true // Track if this is the first app start (cold start/splash)
+
+    // Cache reflection results for performance
+    private var moduleCompanion: Any? = null
+    private var reflectionInitialized = false
 
     init {
         application.registerActivityLifecycleCallbacks(this)
@@ -58,17 +63,37 @@ class AppOpenAdManager(
     override fun onStart(owner: LifecycleOwner) {
         Log.d(TAG, "📱 App came to foreground")
 
-        // Show ad if available and user has launched app enough times
+        // Skip showing ad on first start (during splash screen)
+        if (isFirstStart) {
+            Log.d(TAG, "🚀 First start detected (splash screen) - skipping AppOpen ad")
+            isFirstStart = false
+
+            // Preload ad for when user returns from background
+            if (!isLoadingAd && !isAdAvailable() && shouldShowAd()) {
+                loadAd()
+            }
+            return
+        }
+
+        // Show ad if available and user has launched app enough times (returning from background)
         currentActivity?.let { activity ->
-            if (shouldShowAd()) {
-                showAdIfAvailable(activity)
-            } else {
-                Log.d(TAG, "⏭️ Skipping ad - not ready or launch count too low")
+            if (!shouldShowAd()) {
+                Log.d(TAG, "⏭️ Skipping ad - launch count too low")
                 // Preload for next time
                 if (!isLoadingAd && !isAdAvailable()) {
                     loadAd()
                 }
+                return
             }
+
+            // Check if current screen allows AppOpen ads
+            if (!shouldShowAdOnCurrentScreen()) {
+                Log.d(TAG, "⏭️ Skipping ad - current screen doesn't allow AppOpen ads")
+                return
+            }
+
+            Log.d(TAG, "🔄 Returning from background - showing AppOpen ad")
+            showAdIfAvailable(activity)
         }
     }
 
@@ -85,6 +110,66 @@ class AppOpenAdManager(
     }
 
     /**
+     * Initialize reflection cache (called once)
+     */
+    private fun initializeReflection() {
+        if (reflectionInitialized) return
+
+        try {
+            val moduleClass = Class.forName("com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes.AppOpenAdModule")
+            val companionField = moduleClass.getDeclaredField("Companion")
+            moduleCompanion = companionField.get(null)
+            reflectionInitialized = true
+            Log.d(TAG, "✅ Reflection cache initialized successfully")
+        } catch (e: Exception) {
+            Log.w(TAG, "AppOpenAdModule not available", e)
+            reflectionInitialized = true // Don't try again
+        }
+    }
+
+    /**
+     * Check if AppOpen ad should show on the current screen
+     * This allows React Native to control which screens show AppOpen ads
+     */
+    private fun shouldShowAdOnCurrentScreen(): Boolean {
+        initializeReflection()
+
+        if (moduleCompanion == null) {
+            // Module not available, default to showing ads
+            return true
+        }
+
+        return try {
+            // Access companion object fields directly (cached)
+            val isEnabled = moduleCompanion!!.javaClass.getDeclaredField("isAppOpenAdsEnabled").get(moduleCompanion) as? Boolean ?: true
+            val currentScreen = moduleCompanion!!.javaClass.getDeclaredField("currentScreen").get(moduleCompanion) as? String ?: ""
+            val enabledScreens = moduleCompanion!!.javaClass.getDeclaredField("enabledScreens").get(moduleCompanion) as? Set<*> ?: emptySet<String>()
+
+            if (!isEnabled) {
+                Log.d(TAG, "❌ AppOpen ads disabled globally")
+                return false
+            }
+
+            if (enabledScreens.isEmpty()) {
+                Log.d(TAG, "✅ No screen restrictions - showing ad")
+                return true
+            }
+
+            val shouldShow = (enabledScreens as Set<String>).contains(currentScreen)
+            if (shouldShow) {
+                Log.d(TAG, "✅ Current screen '$currentScreen' is enabled for AppOpen ads")
+            } else {
+                Log.d(TAG, "❌ Current screen '$currentScreen' not in enabled list: ${enabledScreens.joinToString(", ")}")
+            }
+
+            shouldShow
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking screen config, defaulting to show", e)
+            true
+        }
+    }
+
+    /**
      * Increment launch count (call this from MainApplication.onCreate)
      */
     fun incrementLaunchCount() {
@@ -98,6 +183,37 @@ class AppOpenAdManager(
     }
 
     /**
+     * Get the ad unit ID to use
+     * Prioritizes Remote Config value from AppOpenAdModule, falls back to default
+     */
+    private fun getAdUnitId(): String {
+        initializeReflection()
+
+        if (moduleCompanion == null) {
+            // Module not available, use default ad unit ID
+            Log.d(TAG, "📺 Using default ad unit ID: $adUnitId")
+            return adUnitId
+        }
+
+        return try {
+            // Access companion object field directly (cached)
+            val adUnitIdField = moduleCompanion!!.javaClass.getDeclaredField("adUnitId")
+            val rcAdUnitId = adUnitIdField.get(moduleCompanion) as? String
+
+            if (rcAdUnitId != null && rcAdUnitId.isNotEmpty()) {
+                Log.d(TAG, "📺 Using Remote Config ad unit ID: $rcAdUnitId")
+                rcAdUnitId
+            } else {
+                Log.d(TAG, "📺 Using default ad unit ID: $adUnitId")
+                adUnitId
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not access Remote Config ad unit ID, using default", e)
+            adUnitId
+        }
+    }
+
+    /**
      * Load App Open Ad
      */
     fun loadAd() {
@@ -107,7 +223,8 @@ class AppOpenAdManager(
         }
 
         isLoadingAd = true
-        Log.d(TAG, "📥 Loading App Open Ad...")
+        val currentAdUnitId = getAdUnitId()
+        Log.d(TAG, "📥 Loading App Open Ad with unit ID: $currentAdUnitId")
 
         val request = AdRequest.Builder().build()
 
@@ -115,7 +232,7 @@ class AppOpenAdManager(
         // Orientation parameter removed - ads adapt automatically
         AppOpenAd.load(
             application,
-            adUnitId,
+            currentAdUnitId,
             request,
             object : AppOpenAd.AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {

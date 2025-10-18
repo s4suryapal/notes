@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { runOnJS } from 'react-native-reanimated';
 import ColorPicker2, { Panel1, HueSlider, returnedResults } from 'reanimated-color-picker';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface BackgroundPickerProps {
   selectedBackground: string | null;
@@ -108,6 +109,8 @@ export function getBackgroundById(id: string | null): Background | null {
 
 export function BackgroundPicker({ selectedBackground, onBackgroundSelect }: BackgroundPickerProps) {
   const { width: windowWidth } = useWindowDimensions();
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const tabOrder: (keyof typeof backgrounds)[] = ['customize', 'hot', 'nature', 'dark'];
   const [activeTabIndex, setActiveTabIndex] = useState(1); // Start with 'hot' (index 1)
   const flatListRef = useRef<FlatList>(null);
@@ -347,12 +350,12 @@ export function BackgroundPicker({ selectedBackground, onBackgroundSelect }: Bac
         animationType="slide"
         onRequestClose={() => setShowCustomPicker(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowCustomPicker(false)}>
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowCustomPicker(false)}>
+          <Pressable style={[styles.modal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Custom Color</Text>
+              <Text style={[styles.modalTitle, { color: C.text }]}>Choose Custom Color</Text>
               <TouchableOpacity onPress={() => setShowCustomPicker(false)}>
-                <X size={24} color={Colors.light.text} />
+                <X size={24} color={C.text} />
               </TouchableOpacity>
             </View>
 
@@ -367,24 +370,24 @@ export function BackgroundPicker({ selectedBackground, onBackgroundSelect }: Bac
               </ColorPicker2>
 
               <View style={styles.previewContainer}>
-                <Text style={styles.previewLabel}>Selected Color:</Text>
-                <View style={[styles.previewColor, { backgroundColor: tempColor }]} />
-                <Text style={styles.hexText}>{tempColor}</Text>
+                <Text style={[styles.previewLabel, { color: C.textSecondary }]}>Selected Color:</Text>
+                <View style={[styles.previewColor, { backgroundColor: tempColor, borderColor: C.border }]} />
+                <Text style={[styles.hexText, { color: C.text }]}>{tempColor}</Text>
               </View>
             </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
+                style={[styles.modalButton, styles.modalButtonCancel, { backgroundColor: C.background, borderColor: C.border }]}
                 onPress={() => setShowCustomPicker(false)}
               >
-                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+                <Text style={[styles.modalButtonCancelText, { color: C.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: C.primary }]}
                 onPress={handleCustomColorSubmit}
               >
-                <Text style={styles.modalButtonPrimaryText}>Apply</Text>
+                <Text style={[styles.modalButtonPrimaryText, { color: C.surface }]}>Apply</Text>
               </TouchableOpacity>
             </View>
           </Pressable>

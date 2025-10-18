@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform, InteractionManager } from 'react-native';
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform, InteractionManager, BackHandler } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
 import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, Plus, X, Trash2, Archive, CheckSquare, FolderInput, CheckCircle2, Circle, FolderPlus, Image as ImageIcon, Mic, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { NoteCard, NoteCardSkeleton, FormattedText } from '@/components';
 import { CategoryChip } from '@/components/CategoryChip';
 import { FAB } from '@/components/FAB';
@@ -14,6 +16,7 @@ import { NoteActionsSheet } from '@/components/NoteActionsSheet';
 import { getBackgroundById } from '@/components/BackgroundPicker';
 import BannerAdComponent from '@/components/BannerAdComponent';
 import { useNotes } from '@/lib/NotesContext';
+import { authenticateWithBiometrics } from '@/lib/biometric';
 import { useToast } from '@/lib/ToastContext';
 import { ViewMode, Note, SortBy } from '@/types';
 
@@ -28,7 +31,9 @@ export default function HomeScreen() {
   };
   const insets = useSafeAreaInsets();
   const { notes, categories, loading, error, retry, deleteNote, toggleFavorite, toggleArchive, toggleLock, refreshNotes, updateNote, createCategory } = useNotes();
-  const { showSuccess } = useToast();
+  const { showSuccess, showInfo } = useToast();
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   const [index, setIndex] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -128,7 +133,13 @@ export default function HomeScreen() {
         showSuccess(selectedNote.is_locked ? 'Note unlocked' : 'Note locked');
         setShowActionsSheet(false);
       } else {
-        Alert.alert('Error', result.error || 'Failed to toggle lock');
+        const err = (result.error || '').toLowerCase();
+        if (err.includes('cancel')) {
+          showInfo(selectedNote.is_locked ? 'Unlock cancelled' : 'Lock cancelled');
+          setShowActionsSheet(false);
+        } else {
+          Alert.alert('Lock Error', 'Could not complete the action. Please try again.');
+        }
       }
     }
   };
@@ -136,14 +147,26 @@ export default function HomeScreen() {
   const handleDelete = async () => {
     if (!selectedNote) return;
 
+    // If locked, require authentication before showing delete confirm
+    if (selectedNote.is_locked) {
+      const auth = await authenticateWithBiometrics('Authenticate to delete note');
+      if (!auth.success) {
+        const err = (auth.error || '').toLowerCase();
+        if (err.includes('cancel')) {
+          showInfo('Delete cancelled');
+          setShowActionsSheet(false);
+          return;
+        }
+        Alert.alert('Authentication required', 'Could not verify identity.');
+        return;
+      }
+    }
+
     Alert.alert(
       'Delete Note',
       'Are you sure you want to delete this note? It will be moved to trash.',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
@@ -221,6 +244,21 @@ export default function HomeScreen() {
 
   const handleBulkDelete = async () => {
     if (selectedNoteIds.size === 0) return;
+
+    // If any selected note is locked, require authentication first
+    const anyLocked = notes.some(n => selectedNoteIds.has(n.id) && n.is_locked);
+    if (anyLocked) {
+      const auth = await authenticateWithBiometrics('Authenticate to delete locked notes');
+      if (!auth.success) {
+        const err = (auth.error || '').toLowerCase();
+        if (err.includes('cancel')) {
+          showInfo('Delete cancelled');
+          return;
+        }
+        Alert.alert('Authentication required', 'Could not verify identity.');
+        return;
+      }
+    }
 
     Alert.alert(
       'Delete Notes',
@@ -312,6 +350,46 @@ export default function HomeScreen() {
     }
   };
 
+  // Handle Android back: close sheets/modals, exit selection, or double-press to exit app
+  const lastBackPressRef = useRef<number>(0);
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Close modals/sheets first
+        if (showActionsSheet) {
+          setShowActionsSheet(false);
+          return true;
+        }
+        if (showSortModal) {
+          setShowSortModal(false);
+          return true;
+        }
+        if (showCreateCategoryModal) {
+          setShowCreateCategoryModal(false);
+          return true;
+        }
+        // Deselect notes if in selection mode
+        if (selectionMode) {
+          handleDeselectAll();
+          return true;
+        }
+        // Double-press to exit
+        const now = Date.now();
+        if (now - (lastBackPressRef.current || 0) < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPressRef.current = now;
+        try { showSuccess('Press back again to exit'); } catch {}
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => {
+        try { sub.remove(); } catch {}
+      };
+    }, [showActionsSheet, showSortModal, showCreateCategoryModal, selectionMode, handleDeselectAll, showSuccess])
+  );
+
   const handleTabChange = (newIndex: number) => {
     setIndex(newIndex);
   };
@@ -387,9 +465,9 @@ export default function HomeScreen() {
                 {selectionMode ? (
                   <View style={styles.gridSelectionIndicator}>
                     {selectedNoteIds.has(item.id) ? (
-                      <CheckCircle2 size={24} color={Colors.light.primary} fill={Colors.light.primary} />
+                      <CheckCircle2 size={24} color={C.primary} fill={C.primary} />
                     ) : (
-                      <Circle size={24} color={Colors.light.borderLight} />
+                      <Circle size={24} color={C.borderLight} />
                     )}
                   </View>
                 ) : (
@@ -402,13 +480,13 @@ export default function HomeScreen() {
 
                 {item.is_locked ? (
                   <View style={styles.gridLockedContent}>
-                    <Lock size={28} color={Colors.light.textSecondary} strokeWidth={1.5} />
-                    <Text style={styles.gridLockedText}>Locked</Text>
+                    <Lock size={28} color={C.textSecondary} strokeWidth={1.5} />
+                    <Text style={[styles.gridLockedText, { color: C.textSecondary }]}>Locked</Text>
                   </View>
                 ) : (
                   <>
                     {item.title ? (
-                      <Text style={styles.gridTitle} numberOfLines={3}>
+                      <Text style={[styles.gridTitle, { color: C.text }]} numberOfLines={3}>
                         {item.title}
                       </Text>
                     ) : null}
@@ -416,13 +494,14 @@ export default function HomeScreen() {
                       <View style={styles.gridChecklist}>
                         {item.checklist_items.slice(0, 2).map((checkItem) => (
                           <View key={checkItem.id} style={styles.gridChecklistItem}>
-                            <Text style={styles.gridChecklistIcon}>
+                            <Text style={[styles.gridChecklistIcon, { color: C.textSecondary }]}>
                               {checkItem.completed ? '☑' : '☐'}
                             </Text>
                             <Text
                               style={[
                                 styles.gridChecklistText,
-                                checkItem.completed && styles.gridChecklistTextCompleted,
+                                { color: C.text },
+                                checkItem.completed && { color: C.textSecondary },
                               ]}
                               numberOfLines={1}
                             >
@@ -434,7 +513,7 @@ export default function HomeScreen() {
                     ) : item.body ? (
                       <FormattedText
                         text={item.body.substring(0, 100) + (item.body.length > 100 ? '...' : '')}
-                        style={styles.gridBody}
+                        style={[styles.gridBody, { color: C.textSecondary }]}
                         numberOfLines={4}
                       />
                     ) : null}
@@ -442,34 +521,34 @@ export default function HomeScreen() {
                 )}
 
                 {/* Metadata Footer */}
-                <View style={styles.gridMetadataFooter}>
+                <View style={[styles.gridMetadataFooter, { borderTopColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
                   {checklistProgress && (
                     <View style={styles.gridMetadataItem}>
-                      <CheckSquare size={12} color={Colors.light.textTertiary} />
-                      <Text style={styles.gridMetadataText}>
+                      <CheckSquare size={12} color={C.textTertiary} />
+                      <Text style={[styles.gridMetadataText, { color: C.textTertiary }]}>
                         {checklistProgress.completed}/{checklistProgress.total}
                       </Text>
                     </View>
                   )}
                   {item.images && item.images.length > 0 && (
                     <View style={styles.gridMetadataItem}>
-                      <ImageIcon size={12} color={Colors.light.textTertiary} />
+                      <ImageIcon size={12} color={C.textTertiary} />
                       {item.images.length > 1 && (
-                        <Text style={styles.gridMetadataText}>{item.images.length}</Text>
+                        <Text style={[styles.gridMetadataText, { color: C.textTertiary }]}>{item.images.length}</Text>
                       )}
                     </View>
                   )}
                   {item.audio_recordings && item.audio_recordings.length > 0 && (
                     <View style={styles.gridMetadataItem}>
-                      <Mic size={12} color={Colors.light.textTertiary} />
+                      <Mic size={12} color={C.textTertiary} />
                       {item.audio_recordings.length > 1 && (
-                        <Text style={styles.gridMetadataText}>{item.audio_recordings.length}</Text>
+                        <Text style={[styles.gridMetadataText, { color: C.textTertiary }]}>{item.audio_recordings.length}</Text>
                       )}
                     </View>
                   )}
                   {item.is_locked && (
                     <View style={styles.gridMetadataItem}>
-                      <Lock size={12} color={Colors.light.textTertiary} />
+                      <Lock size={12} color={C.textTertiary} />
                     </View>
                   )}
                 </View>
@@ -513,7 +592,8 @@ export default function HomeScreen() {
                     colors={background.gradient as [string, string, ...string[]]}
                     style={[
                       styles.gridCard,
-                      isSelected && styles.gridCardSelected
+                      { backgroundColor: C.surface },
+                      isSelected && { borderColor: C.primary, borderWidth: 3 }
                     ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -525,8 +605,8 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.gridCard,
-                    (isSolid || isPattern) && { backgroundColor: background?.value || Colors.light.surface },
-                    isSelected && styles.gridCardSelected
+                    { backgroundColor: (isSolid || isPattern) ? (background?.value || C.surface) : C.surface },
+                    isSelected && { borderColor: C.primary, borderWidth: 3 }
                   ]}
                   onPress={() => handleNotePress(item.id)}
                   onLongPress={() => handleLongPress(item.id)}
@@ -544,8 +624,8 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[Colors.light.primary]}
-            tintColor={Colors.light.primary}
+            colors={[C.primary]}
+            tintColor={C.primary}
           />
         }
       />
@@ -558,13 +638,13 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: C.background }]}>
+        <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={openDrawer}>
-              <Menu size={24} color={Colors.light.text} />
+              <Menu size={24} color={C.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Notes</Text>
+            <Text style={[styles.headerTitle, { color: C.text }]}>Notes</Text>
           </View>
         </View>
         <View style={styles.notesContainer}>
@@ -578,13 +658,13 @@ export default function HomeScreen() {
 
   if (error) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: C.background }]}>
+        <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={openDrawer}>
-              <Menu size={24} color={Colors.light.text} />
+              <Menu size={24} color={C.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Notes</Text>
+            <Text style={[styles.headerTitle, { color: C.text }]}>Notes</Text>
           </View>
         </View>
         <EmptyState
@@ -598,29 +678,29 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={openDrawer}>
-            <Menu size={24} color={Colors.light.text} />
+            <Menu size={24} color={C.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notes</Text>
+          <Text style={[styles.headerTitle, { color: C.text }]}>Notes</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={() => router.push('/search')} style={styles.iconButton}>
-            <SearchIcon size={24} color={Colors.light.text} />
+            <SearchIcon size={24} color={C.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowSortModal(true)} style={styles.iconButton}>
-            <ArrowUpDown size={24} color={Colors.light.text} />
+            <ArrowUpDown size={24} color={C.text} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             style={styles.iconButton}
           >
             {viewMode === 'grid' ? (
-              <List size={24} color={Colors.light.text} />
+              <List size={24} color={C.text} />
             ) : (
-              <Grid size={24} color={Colors.light.text} />
+              <Grid size={24} color={C.text} />
             )}
           </TouchableOpacity>
         </View>
@@ -645,19 +725,19 @@ export default function HomeScreen() {
                   {...props}
                   scrollEnabled
                   indicatorStyle={[styles.tabIndicator, { backgroundColor: indicatorColor }]}
-                  style={styles.tabBar}
+                  style={[styles.tabBar, { backgroundColor: C.surface, borderBottomColor: C.borderLight }]}
                   tabStyle={styles.tab}
                   activeColor={indicatorColor}
-                  inactiveColor={Colors.light.textSecondary}
+                  inactiveColor={C.textSecondary}
                   contentContainerStyle={styles.tabBarContent}
                 />
-                <View style={styles.addCategoryButton}>
-                  <View style={styles.verticalDivider} />
+                <View style={[styles.addCategoryButton, { backgroundColor: C.surface }]}>
+                  <View style={[styles.verticalDivider, { backgroundColor: C.borderLight }]} />
                   <TouchableOpacity
                     style={styles.addCategoryButtonInner}
                     onPress={() => setShowCreateCategoryModal(true)}
                   >
-                    <FolderPlus size={20} color={Colors.light.text} />
+                    <FolderPlus size={20} color={C.text} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -667,7 +747,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Banner Ad at bottom */}
-      <View style={styles.bannerAdContainer}>
+      <View style={[styles.bannerAdContainer, { backgroundColor: C.background }]}>
         <BannerAdComponent
           adType="adaptiveBanner"
           location="home"
@@ -681,37 +761,37 @@ export default function HomeScreen() {
 
       {/* Bulk Actions Bottom Bar */}
       {selectionMode && (
-        <SafeAreaView edges={['bottom']} style={styles.bottomActionBar}>
+        <SafeAreaView edges={['bottom']} style={[styles.bottomActionBar, { backgroundColor: C.surface, borderTopColor: C.border }]}>
           <View style={styles.bottomActionBarContent}>
             <TouchableOpacity style={styles.bottomBarButton} onPress={() => handleSelectAll(getFilteredNotes(allCategories[index].id))}>
-              <CheckSquare size={20} color={Colors.light.text} />
-              <Text style={styles.bottomBarText}>All</Text>
+              <CheckSquare size={20} color={C.text} />
+              <Text style={[styles.bottomBarText, { color: C.text }]}>All</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bottomBarButton} onPress={() => setShowBulkCategoryPicker(true)} disabled={selectedNoteIds.size === 0}>
-              <FolderInput size={20} color={selectedNoteIds.size === 0 ? Colors.light.textTertiary : Colors.light.text} />
-              <Text style={[styles.bottomBarText, selectedNoteIds.size === 0 && styles.bottomBarTextDisabled]}>
+              <FolderInput size={20} color={selectedNoteIds.size === 0 ? C.textTertiary : C.text} />
+              <Text style={[styles.bottomBarText, { color: selectedNoteIds.size === 0 ? C.textTertiary : C.text }]}>
                 Move
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bottomBarButton} onPress={handleBulkArchive} disabled={selectedNoteIds.size === 0}>
-              <Archive size={20} color={selectedNoteIds.size === 0 ? Colors.light.textTertiary : Colors.light.text} />
-              <Text style={[styles.bottomBarText, selectedNoteIds.size === 0 && styles.bottomBarTextDisabled]}>
+              <Archive size={20} color={selectedNoteIds.size === 0 ? C.textTertiary : C.text} />
+              <Text style={[styles.bottomBarText, { color: selectedNoteIds.size === 0 ? C.textTertiary : C.text }]}>
                 Archive
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bottomBarButton} onPress={handleBulkDelete} disabled={selectedNoteIds.size === 0}>
-              <Trash2 size={20} color={selectedNoteIds.size === 0 ? Colors.light.textTertiary : Colors.light.error} />
-              <Text style={[styles.bottomBarText, selectedNoteIds.size === 0 && styles.bottomBarTextDisabled]}>
+              <Trash2 size={20} color={selectedNoteIds.size === 0 ? C.textTertiary : C.error} />
+              <Text style={[styles.bottomBarText, { color: selectedNoteIds.size === 0 ? C.textTertiary : C.text }]}>
                 Delete
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.bottomBarButton} onPress={handleDeselectAll}>
-              <X size={20} color={Colors.light.text} />
-              <Text style={styles.bottomBarText}>Cancel</Text>
+              <X size={20} color={C.text} />
+              <Text style={[styles.bottomBarText, { color: C.text }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -737,9 +817,9 @@ export default function HomeScreen() {
         onRequestClose={() => setShowSortModal(false)}
         statusBarTranslucent
       >
-        <Pressable style={styles.sortModalOverlay} onPress={() => setShowSortModal(false)}>
-          <Pressable style={styles.sortModal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sortModalTitle}>Sort by</Text>
+        <Pressable style={[styles.sortModalOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowSortModal(false)}>
+          <Pressable style={[styles.sortModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.sortModalTitle, { color: C.text }]}>Sort by</Text>
             <TouchableOpacity
               style={styles.sortOption}
               onPress={() => {
@@ -747,8 +827,8 @@ export default function HomeScreen() {
                 setShowSortModal(false);
               }}
             >
-              <Text style={styles.sortOptionText}>Last updated</Text>
-              {sortBy === 'updated' && <Check size={20} color={Colors.light.primary} />}
+              <Text style={[styles.sortOptionText, { color: C.text }]}>Last updated</Text>
+              {sortBy === 'updated' && <Check size={20} color={C.primary} />}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.sortOption}
@@ -757,8 +837,8 @@ export default function HomeScreen() {
                 setShowSortModal(false);
               }}
             >
-              <Text style={styles.sortOptionText}>Date created</Text>
-              {sortBy === 'created' && <Check size={20} color={Colors.light.primary} />}
+              <Text style={[styles.sortOptionText, { color: C.text }]}>Date created</Text>
+              {sortBy === 'created' && <Check size={20} color={C.primary} />}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.sortOption}
@@ -767,8 +847,8 @@ export default function HomeScreen() {
                 setShowSortModal(false);
               }}
             >
-              <Text style={styles.sortOptionText}>Title (A-Z)</Text>
-              {sortBy === 'title' && <Check size={20} color={Colors.light.primary} />}
+              <Text style={[styles.sortOptionText, { color: C.text }]}>Title (A-Z)</Text>
+              {sortBy === 'title' && <Check size={20} color={C.primary} />}
             </TouchableOpacity>
           </Pressable>
         </Pressable>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Check, X } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { ChecklistItem } from '@/types';
 
 interface ChecklistItemProps {
@@ -14,6 +15,8 @@ interface ChecklistItemProps {
 export function ChecklistItemComponent({ item, onToggle, onUpdate, onDelete }: ChecklistItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(item.text);
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   const handleBlur = () => {
     setIsEditing(false);
@@ -25,15 +28,15 @@ export function ChecklistItemComponent({ item, onToggle, onUpdate, onDelete }: C
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.checkbox, item.completed && styles.checkboxChecked]}
+        style={[styles.checkbox, { borderColor: C.textTertiary }, item.completed && { backgroundColor: C.primary, borderColor: C.primary }]}
         onPress={() => onToggle(item.id)}
       >
-        {item.completed && <Check size={16} color={Colors.light.surface} strokeWidth={3} />}
+        {item.completed && <Check size={16} color={C.surface} strokeWidth={3} />}
       </TouchableOpacity>
 
       {isEditing ? (
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: C.text }]}
           value={text}
           onChangeText={setText}
           onBlur={handleBlur}
@@ -45,7 +48,8 @@ export function ChecklistItemComponent({ item, onToggle, onUpdate, onDelete }: C
           <Text
             style={[
               styles.text,
-              item.completed && styles.textCompleted,
+              { color: C.text },
+              item.completed && { color: C.textSecondary, textDecorationLine: 'line-through' },
             ]}
           >
             {item.text}
@@ -54,7 +58,7 @@ export function ChecklistItemComponent({ item, onToggle, onUpdate, onDelete }: C
       )}
 
       <TouchableOpacity onPress={() => onDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <X size={18} color={Colors.light.textTertiary} />
+        <X size={18} color={C.textTertiary} />
       </TouchableOpacity>
     </View>
   );
@@ -76,10 +80,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
-  },
+  checkboxChecked: {},
   textContainer: {
     flex: 1,
   },
@@ -88,10 +89,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     lineHeight: Typography.fontSize.base * Typography.lineHeight.normal,
   },
-  textCompleted: {
-    textDecorationLine: 'line-through',
-    color: Colors.light.textSecondary,
-  },
+  textCompleted: {},
   input: {
     flex: 1,
     fontSize: Typography.fontSize.base,

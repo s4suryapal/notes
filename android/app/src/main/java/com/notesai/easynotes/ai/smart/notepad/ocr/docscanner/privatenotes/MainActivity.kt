@@ -17,6 +17,8 @@ import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.ReactInstanceManager
+import com.facebook.react.bridge.ReactContext
 
 import expo.modules.ReactActivityDelegateWrapper
 import com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes.BuildConfig
@@ -111,14 +113,14 @@ class MainActivity : ReactActivity() {
 
     // Add custom exit animation
     splashScreen.setOnExitAnimationListener { splashScreenView ->
-      // Slide up animation when dismissing splash
+      // Smooth slide up animation when dismissing splash
       val slideUp = ObjectAnimator.ofFloat(
         splashScreenView.view,
         View.TRANSLATION_Y,
         0f,
         -splashScreenView.view.height.toFloat()
       )
-      slideUp.duration = 300L
+      slideUp.duration = 250L // Balanced duration for smooth UX
       slideUp.start()
 
       // Remove the splash screen view after animation
@@ -137,10 +139,16 @@ class MainActivity : ReactActivity() {
 
     super.onCreate(null)
 
-    // Allow splash screen to dismiss after short delay (React Native loading time)
-    Handler(Looper.getMainLooper()).postDelayed({
-      keepSplashOnScreen = false
-    }, 500)
+    // ⚡ SPLASH CONTROL: Keep native splash visible until React Native signals it's ready
+    // The splash will be hidden from React Native side (_layout.tsx) after:
+    // - AdMob SDK initialization (critical for banner ads)
+    // - Language context loading
+    // - Firebase services deferred to background (non-blocking)
+    //
+    // Typical splash time: ~1-1.5s (AdMob + context)
+    // Safety timeout: 5s maximum (prevents infinite splash)
+    //
+    // Note: AppOpen ads handled by AppOpenAdManager - only show on background return
 
     // Handle intent from CallEndActivity
     handleIntent(intent)
@@ -158,28 +166,33 @@ class MainActivity : ReactActivity() {
     val phoneNumber = intent.getStringExtra("phoneNumber")
 
     if (action != null) {
-      // Wait for React Native context to be ready
-      Handler(Looper.getMainLooper()).postDelayed({
+      // Emit to JS when context is ready (immediately or once initialized)
+      fun emit(event: String, payload: String?) {
         try {
-          val reactContext = reactInstanceManager?.currentReactContext
-          if (reactContext != null) {
-            when (action) {
-              "create_note" -> {
-                reactContext
-                  .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                  ?.emit("onCreateNote", noteType ?: "text")
+          val ctx = reactInstanceManager?.currentReactContext
+          if (ctx != null) {
+            ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+              ?.emit(event, payload)
+          } else {
+            reactInstanceManager?.addReactInstanceEventListener(object : ReactInstanceManager.ReactInstanceEventListener {
+              override fun onReactContextInitialized(context: ReactContext) {
+                try {
+                  context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    ?.emit(event, payload)
+                } catch (_: Exception) {}
+                reactInstanceManager?.removeReactInstanceEventListener(this)
               }
-              "open_note" -> {
-                reactContext
-                  .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                  ?.emit("onOpenNote", noteId)
-              }
-            }
+            })
           }
         } catch (e: Exception) {
           e.printStackTrace()
         }
-      }, 600)
+      }
+
+      when (action) {
+        "create_note" -> emit("onCreateNote", noteType ?: "text")
+        "open_note" -> emit("onOpenNote", noteId)
+      }
     }
   }
 

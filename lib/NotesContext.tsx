@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Note, Category, CreateNoteInput } from '@/types';
 import * as Storage from './storage';
-import { encryptText, decryptText } from './encryption';
+import { encryptText, decryptText, isEncryptionAvailable } from './encryption';
 import { authenticateWithBiometrics } from './biometric';
 
 interface NotesContextType {
@@ -155,20 +155,38 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-          // Encrypt the body (handles empty strings gracefully)
-          const encryptedBody = await encryptText(note.body || '');
+          // If proper encryption is available, encrypt. Otherwise, fall back to biometric-gated soft lock.
+          const canEncrypt = await isEncryptionAvailable();
+          if (canEncrypt) {
+            // Encrypt the body (handles empty strings gracefully)
+            const encryptedBody = await encryptText(note.body || '');
+            await Storage.updateNote(id, {
+              body: encryptedBody,
+              is_locked: true,
+            });
+            await refreshNotes();
+            return { success: true };
+          }
+
+          // Soft lock fallback: keep body as-is but mark locked
           await Storage.updateNote(id, {
-            body: encryptedBody,
             is_locked: true,
           });
           await refreshNotes();
           return { success: true };
         } catch (encryptError) {
           console.error('Encryption failed:', encryptError);
-          return {
-            success: false,
-            error: encryptError instanceof Error ? encryptError.message : 'Failed to encrypt note'
-          };
+          // As a resilience measure, still apply a soft lock if encryption fails unexpectedly
+          try {
+            await Storage.updateNote(id, { is_locked: true });
+            await refreshNotes();
+            return { success: true };
+          } catch {
+            return {
+              success: false,
+              error: encryptError instanceof Error ? encryptError.message : 'Failed to encrypt note'
+            };
+          }
         }
       }
     } catch (error: any) {

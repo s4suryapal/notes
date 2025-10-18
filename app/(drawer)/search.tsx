@@ -5,11 +5,14 @@ import { router } from 'expo-router';
 import { ArrowLeft, Search as SearchIcon, X, ArrowUpDown, Check } from 'lucide-react-native';
 import Fuse from 'fuse.js';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { SwipeableNoteCard, NoteActionsSheet, EmptyState } from '@/components';
 import { useNotes } from '@/lib/NotesContext';
 import { Note, SortBy } from '@/types';
 
 export default function SearchScreen() {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const { notes, deleteNote, toggleFavorite, toggleArchive, refreshNotes, updateNote } = useNotes();
   const [inputValue, setInputValue] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -145,29 +148,29 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <View style={styles.searchBar}>
-          <SearchIcon size={20} color={Colors.light.textTertiary} />
+        <View style={[styles.searchBar, { backgroundColor: C.background, borderColor: C.border }]}>
+          <SearchIcon size={20} color={C.textTertiary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: C.text }]}
             placeholder="Search notes..."
-            placeholderTextColor={Colors.light.textTertiary}
+            placeholderTextColor={C.textTertiary}
             value={inputValue}
             onChangeText={handleSearch}
             autoFocus
           />
           {inputValue.length > 0 && (
             <TouchableOpacity onPress={handleClearSearch}>
-              <X size={20} color={Colors.light.textTertiary} />
+              <X size={20} color={C.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity onPress={() => setShowSortModal(true)} style={styles.iconButton}>
-          <ArrowUpDown size={24} color={Colors.light.text} />
+          <ArrowUpDown size={24} color={C.text} />
         </TouchableOpacity>
       </View>
 
@@ -183,7 +186,7 @@ export default function SearchScreen() {
         />
       ) : (
         <View style={styles.resultsContainer}>
-          <Text style={styles.resultsCount}>
+          <Text style={[styles.resultsCount, { color: C.textSecondary }]}>
             {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} found
           </Text>
           <FlatList
@@ -210,8 +213,8 @@ export default function SearchScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                colors={[Colors.light.primary]}
-                tintColor={Colors.light.primary}
+                colors={[C.primary]}
+                tintColor={C.primary}
               />
             }
             removeClippedSubviews={true}
@@ -240,9 +243,9 @@ export default function SearchScreen() {
         onRequestClose={() => setShowSortModal(false)}
         statusBarTranslucent
       >
-        <Pressable style={styles.sortModalOverlay} onPress={() => setShowSortModal(false)}>
-          <Pressable style={styles.sortModal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sortModalTitle}>Sort by</Text>
+        <Pressable style={[styles.sortModalOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowSortModal(false)}>
+          <Pressable style={[styles.sortModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.sortModalTitle, { color: C.text }]}>Sort by</Text>
             <TouchableOpacity
               style={styles.sortOption}
               onPress={() => {
@@ -250,8 +253,8 @@ export default function SearchScreen() {
                 setShowSortModal(false);
               }}
             >
-              <Text style={styles.sortOptionText}>Last updated</Text>
-              {sortBy === 'updated' && <Check size={20} color={Colors.light.primary} />}
+              <Text style={[styles.sortOptionText, { color: C.text }]}>Last updated</Text>
+              {sortBy === 'updated' && <Check size={20} color={C.primary} />}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.sortOption}
@@ -260,8 +263,8 @@ export default function SearchScreen() {
                 setShowSortModal(false);
               }}
             >
-              <Text style={styles.sortOptionText}>Date created</Text>
-              {sortBy === 'created' && <Check size={20} color={Colors.light.primary} />}
+              <Text style={[styles.sortOptionText, { color: C.text }]}>Date created</Text>
+              {sortBy === 'created' && <Check size={20} color={C.primary} />}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.sortOption}
@@ -270,8 +273,8 @@ export default function SearchScreen() {
                 setShowSortModal(false);
               }}
             >
-              <Text style={styles.sortOptionText}>Title (A-Z)</Text>
-              {sortBy === 'title' && <Check size={20} color={Colors.light.primary} />}
+              <Text style={[styles.sortOptionText, { color: C.text }]}>Title (A-Z)</Text>
+              {sortBy === 'title' && <Check size={20} color={C.primary} />}
             </TouchableOpacity>
           </Pressable>
         </Pressable>

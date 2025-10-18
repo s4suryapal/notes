@@ -4,11 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
 import { NoteCard } from '@/components';
 
 export default function CalendarScreen() {
   const { notes } = useNotes();
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -87,29 +90,29 @@ export default function CalendarScreen() {
   const monthYear = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Calendar</Text>
+        <Text style={[styles.headerTitle, { color: C.text }]}>Calendar</Text>
       </View>
 
       {/* Calendar Header */}
-      <View style={styles.calendarHeader}>
+      <View style={[styles.calendarHeader, { backgroundColor: C.surface }]}>
         <TouchableOpacity onPress={handlePreviousMonth} style={styles.monthButton}>
-          <ChevronLeft size={24} color={Colors.light.text} />
+          <ChevronLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.monthYear}>{monthYear}</Text>
+        <Text style={[styles.monthYear, { color: C.text }]}>{monthYear}</Text>
         <TouchableOpacity onPress={handleNextMonth} style={styles.monthButton}>
-          <ChevronRight size={24} color={Colors.light.text} />
+          <ChevronRight size={24} color={C.text} />
         </TouchableOpacity>
       </View>
 
       {/* Weekday Headers */}
-      <View style={styles.weekdayHeader}>
+      <View style={[styles.weekdayHeader, { backgroundColor: C.surface, borderBottomColor: C.borderLight }]}>
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <Text key={day} style={styles.weekdayText}>
+          <Text key={day} style={[styles.weekdayText, { color: C.textSecondary }]}>
             {day}
           </Text>
         ))}
@@ -132,23 +135,24 @@ export default function CalendarScreen() {
                 key={day.toDateString()}
                 style={[
                   styles.dayCell,
-                  today && styles.dayCellToday,
-                  selected && styles.dayCellSelected,
+                  today && { backgroundColor: C.primaryLight, borderRadius: BorderRadius.md },
+                  selected && { backgroundColor: C.primary, borderRadius: BorderRadius.md },
                 ]}
                 onPress={() => handleDatePress(day)}
               >
                 <Text
                   style={[
                     styles.dayNumber,
-                    today && styles.dayNumberToday,
-                    selected && styles.dayNumberSelected,
+                    { color: C.text },
+                    today && { color: C.primary, fontWeight: Typography.fontWeight.bold },
+                    selected && { color: C.surface, fontWeight: Typography.fontWeight.bold },
                   ]}
                 >
                   {day.getDate()}
                 </Text>
                 {noteCount > 0 && (
-                  <View style={styles.noteIndicator}>
-                    <Text style={styles.noteCount}>{noteCount}</Text>
+                  <View style={[styles.noteIndicator, { backgroundColor: C.accent }]}>
+                    <Text style={[styles.noteCount, { color: C.surface }]}>{noteCount}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -158,11 +162,11 @@ export default function CalendarScreen() {
 
         {/* Notes for Selected Date */}
         <View style={styles.notesSection}>
-          <Text style={styles.notesSectionTitle}>
+          <Text style={[styles.notesSectionTitle, { color: C.text }]}>
             Notes for {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </Text>
           {notesForSelectedDate.length === 0 ? (
-            <Text style={styles.emptyText}>No notes on this day</Text>
+            <Text style={[styles.emptyText, { color: C.textSecondary }]}>No notes on this day</Text>
           ) : (
             <FlatList
               data={notesForSelectedDate}

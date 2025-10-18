@@ -7,11 +7,14 @@ import { useCallback } from 'react';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { ArrowLeft, GripVertical, Lock, Unlock, Edit2, Trash2, Plus, Info } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
 import { ColorPicker } from '@/components';
 import type { Category } from '@/types';
 
 export default function ManageCategoriesScreen() {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const { categories, reorderCategories, updateCategory, deleteCategory, createCategory, getCategoryNoteCounts } = useNotes();
   const [localCategories, setLocalCategories] = useState<Category[]>([]);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -150,34 +153,34 @@ export default function ManageCategoriesScreen() {
         <View style={styles.categoryLeft}>
           <GripVertical
             size={20}
-            color={isAllCategory ? Colors.light.borderLight : Colors.light.textSecondary}
+            color={isAllCategory ? C.borderLight : C.textSecondary}
             style={styles.gripIcon}
           />
           <View
             style={[styles.categoryColorDot, { backgroundColor: item.color }]}
           />
-          <Text style={[styles.categoryName, isAllCategory && styles.categoryNameLocked]}>
+          <Text style={[styles.categoryName, { color: C.text }, isAllCategory && { color: C.textTertiary }]}>
             {item.name}
-            <Text style={styles.categoryCount}>({noteCount})</Text>
+            <Text style={[styles.categoryCount, { color: C.textSecondary }]}>({noteCount})</Text>
           </Text>
         </View>
 
         <View style={styles.categoryRight}>
           {isAllCategory ? (
-            <Lock size={18} color={Colors.light.borderLight} />
+            <Lock size={18} color={C.borderLight} />
           ) : (
             <>
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleRename(item)}
               >
-                <Edit2 size={18} color={Colors.light.textSecondary} />
+                <Edit2 size={18} color={C.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleDelete(item)}
               >
-                <Trash2 size={18} color={Colors.light.error} />
+                <Trash2 size={18} color={C.error} />
               </TouchableOpacity>
             </>
           )}
@@ -187,13 +190,13 @@ export default function ManageCategoriesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Folders</Text>
+        <Text style={[styles.headerTitle, { color: C.text }]}>Folders</Text>
       </View>
 
       {/* Info Banner */}
@@ -212,23 +215,23 @@ export default function ManageCategoriesScreen() {
         renderItem={renderCategory}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, { color: C.text }]}>
             Categories ({localCategories.length})
           </Text>
         }
       />
 
       {/* Add Category Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: C.surface, borderTopColor: C.border }]}>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: C.primary }]}
           onPress={() => {
             setCategoryName('');
             setShowCreateModal(true);
           }}
         >
-          <Plus size={20} color={Colors.light.surface} />
-          <Text style={styles.addButtonText}>ADD FOLDER</Text>
+          <Plus size={20} color={C.surface} />
+          <Text style={[styles.addButtonText, { color: C.surface }]}>ADD FOLDER</Text>
         </TouchableOpacity>
       </View>
 
@@ -245,14 +248,14 @@ export default function ManageCategoriesScreen() {
           }, 50);
         }}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowRenameModal(false)}>
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Edit Folder</Text>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowRenameModal(false)}>
+          <Pressable style={[styles.modal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, { color: C.text }]}>Edit Folder</Text>
             <TextInput
               ref={renameInputRef}
-              style={styles.input}
+              style={[styles.input, { borderColor: C.border, color: C.text }]}
               placeholder="Folder name"
-              placeholderTextColor={Colors.light.textTertiary}
+              placeholderTextColor={C.textTertiary}
               value={categoryName}
               onChangeText={setCategoryName}
               returnKeyType="done"
@@ -270,19 +273,19 @@ export default function ManageCategoriesScreen() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
+                style={[styles.modalButton, styles.modalButtonCancel, { backgroundColor: C.background, borderColor: C.border }]}
                 onPress={() => {
                   setShowRenameModal(false);
                   setCategoryName('');
                 }}
               >
-                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+                <Text style={[styles.modalButtonCancelText, { color: C.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: C.primary }]}
                 onPress={handleSaveRename}
               >
-                <Text style={styles.modalButtonPrimaryText}>Save</Text>
+                <Text style={[styles.modalButtonPrimaryText, { color: C.surface }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -302,14 +305,14 @@ export default function ManageCategoriesScreen() {
           }, 50);
         }}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowCreateModal(false)}>
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>New Folder</Text>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowCreateModal(false)}>
+          <Pressable style={[styles.modal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, { color: C.text }]}>New Folder</Text>
             <TextInput
               ref={createInputRef}
-              style={styles.input}
+              style={[styles.input, { borderColor: C.border, color: C.text }]}
               placeholder="Folder name"
-              placeholderTextColor={Colors.light.textTertiary}
+              placeholderTextColor={C.textTertiary}
               value={categoryName}
               onChangeText={setCategoryName}
               returnKeyType="done"
@@ -327,20 +330,20 @@ export default function ManageCategoriesScreen() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
+                style={[styles.modalButton, styles.modalButtonCancel, { backgroundColor: C.background, borderColor: C.border }]}
                 onPress={() => {
                   setShowCreateModal(false);
                   setCategoryName('');
                   setCategoryColor('#F44336');
                 }}
               >
-                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+                <Text style={[styles.modalButtonCancelText, { color: C.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: C.primary }]}
                 onPress={handleCreateCategory}
               >
-                <Text style={styles.modalButtonPrimaryText}>Create</Text>
+                <Text style={[styles.modalButtonPrimaryText, { color: C.surface }]}>Create</Text>
               </TouchableOpacity>
             </View>
           </Pressable>

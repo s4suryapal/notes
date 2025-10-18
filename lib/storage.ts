@@ -492,6 +492,33 @@ export async function exportAllData(): Promise<{
 }
 
 /**
+ * Export only current (active) notes and categories
+ * - Excludes deleted and archived notes
+ */
+export async function exportCurrentNotes(): Promise<{
+  notes: Note[];
+  categories: Category[];
+  version: string;
+  exported_at: string;
+}> {
+  try {
+    const allNotes = await getAllNotes();
+    const notes = allNotes.filter(n => !n.is_deleted && !n.is_archived);
+    const categories = await getAllCategories();
+
+    return {
+      notes,
+      categories,
+      version: '1.0.0',
+      exported_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('Error exporting current notes:', error);
+    throw error;
+  }
+}
+
+/**
  * Import data from JSON (for restore)
  */
 export async function importAllData(data: {

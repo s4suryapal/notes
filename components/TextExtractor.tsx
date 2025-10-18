@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 export interface OCRResult {
   text: string;
@@ -32,6 +33,8 @@ export default function TextExtractor({ visible, onClose, onExtractComplete }: T
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState<string>('');
   const [sourceImageUri, setSourceImageUri] = useState<string>('');
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   // Process image with OCR
   const processImage = async (uri: string) => {
@@ -175,81 +178,81 @@ export default function TextExtractor({ visible, onClose, onExtractComplete }: T
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
+      <Pressable style={[styles.overlay, { backgroundColor: C.overlay }]} onPress={handleClose}>
+        <Pressable style={[styles.modal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
           {/* Header */}
           <View style={styles.header}>
-            <FileText size={24} color={Colors.light.primary} />
-            <Text style={styles.title}>Extract Text from Image</Text>
+            <FileText size={24} color={C.primary} />
+            <Text style={[styles.title, { color: C.text }]}>Extract Text from Image</Text>
             <TouchableOpacity onPress={handleClose}>
-              <X size={24} color={Colors.light.text} />
+              <X size={24} color={C.text} />
             </TouchableOpacity>
           </View>
 
           {isProcessing ? (
             // Processing state
             <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color={Colors.light.primary} />
-              <Text style={styles.processingText}>Extracting text...</Text>
-              <Text style={styles.processingHint}>This may take a few seconds</Text>
+              <ActivityIndicator size="large" color={C.primary} />
+              <Text style={[styles.processingText, { color: C.text }]}>Extracting text...</Text>
+              <Text style={[styles.processingHint, { color: C.textSecondary }]}>This may take a few seconds</Text>
             </View>
           ) : extractedText ? (
             // Result state
             <>
               <View style={styles.resultContainer}>
                 <View style={styles.resultHeader}>
-                  <Text style={styles.resultTitle}>Extracted Text:</Text>
-                  <Text style={styles.characterCount}>{extractedText.length} characters</Text>
+                  <Text style={[styles.resultTitle, { color: C.text }]}>Extracted Text:</Text>
+                  <Text style={[styles.characterCount, { color: C.textSecondary }]}>{extractedText.length} characters</Text>
                 </View>
                 <ScrollView style={styles.textPreviewScroll} contentContainerStyle={styles.textPreviewContent}>
-                  <Text style={styles.extractedText} selectable>{extractedText}</Text>
+                  <Text style={[styles.extractedText, { color: C.text, backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : Colors.light.borderLight }]} selectable>{extractedText}</Text>
                 </ScrollView>
               </View>
 
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.tryAgainButton} onPress={handleTryAgain}>
-                  <Text style={styles.tryAgainButtonText}>Try Again</Text>
+                <TouchableOpacity style={[styles.tryAgainButton, { borderColor: C.border }]} onPress={handleTryAgain}>
+                  <Text style={[styles.tryAgainButtonText, { color: C.text }]}>Try Again</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-                  <Text style={styles.confirmButtonText}>Use Text</Text>
+                <TouchableOpacity style={[styles.confirmButton, { backgroundColor: C.primary }]} onPress={handleConfirm}>
+                  <Text style={[styles.confirmButtonText, { color: C.surface }]}>Use Text</Text>
                 </TouchableOpacity>
               </View>
             </>
           ) : (
             // Initial state - choose source
             <>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.subtitle, { color: C.textSecondary }]}>
                 Select an image containing text to extract:
               </Text>
 
               <View style={styles.optionsContainer}>
-                <TouchableOpacity style={styles.optionButton} onPress={handlePickFromCamera}>
+                <TouchableOpacity style={[styles.optionButton, { borderColor: C.border }]} onPress={handlePickFromCamera}>
                   <View style={styles.optionIcon}>
-                    <ImageIcon size={32} color={Colors.light.primary} />
+                    <ImageIcon size={32} color={C.primary} />
                   </View>
-                  <Text style={styles.optionTitle}>Take Photo</Text>
-                  <Text style={styles.optionDescription}>
+                  <Text style={[styles.optionTitle, { color: C.text }]}>Take Photo</Text>
+                  <Text style={[styles.optionDescription, { color: C.textSecondary }]}>
                     Capture a photo of document, receipt, or any text
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.optionButton} onPress={handlePickFromGallery}>
+                <TouchableOpacity style={[styles.optionButton, { borderColor: C.border }]} onPress={handlePickFromGallery}>
                   <View style={styles.optionIcon}>
-                    <FileText size={32} color={Colors.light.primary} />
+                    <FileText size={32} color={C.primary} />
                   </View>
-                  <Text style={styles.optionTitle}>Choose from Gallery</Text>
-                  <Text style={styles.optionDescription}>
+                  <Text style={[styles.optionTitle, { color: C.text }]}>Choose from Gallery</Text>
+                  <Text style={[styles.optionDescription, { color: C.textSecondary }]}>
                     Select an existing image from your photo library
                   </Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.tipContainer}>
-                <Text style={styles.tipTitle}>💡 Tips for best results:</Text>
-                <Text style={styles.tipText}>• Ensure good lighting and clear focus</Text>
-                <Text style={styles.tipText}>• Avoid shadows and glare</Text>
-                <Text style={styles.tipText}>• Hold camera steady and parallel to text</Text>
-                <Text style={styles.tipText}>• Works best with printed text</Text>
+                <Text style={[styles.tipTitle, { color: C.text }]}>💡 Tips for best results:</Text>
+                <Text style={[styles.tipText, { color: C.textSecondary }]}>• Ensure good lighting and clear focus</Text>
+                <Text style={[styles.tipText, { color: C.textSecondary }]}>• Avoid shadows and glare</Text>
+                <Text style={[styles.tipText, { color: C.textSecondary }]}>• Hold camera steady and parallel to text</Text>
+                <Text style={[styles.tipText, { color: C.textSecondary }]}>• Works best with printed text</Text>
               </View>
             </>
           )}

@@ -43,6 +43,7 @@ class MainApplication : Application(), ReactApplication {
               add(OverlaySettingsPackage())
               add(AppControlPackage())
               add(FirebaseAIPackage())
+              add(AppOpenAdPackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
@@ -66,18 +67,19 @@ class MainApplication : Application(), ReactApplication {
     }
 
     // Initialize notification channels (Android 8.0+)
-    // Following Google's best practice: Create channels once at app startup
+    // Quick operation - safe on main thread
     NotificationChannelManager.createNotificationChannels(this)
     Log.d(TAG, "🔔 Notification channels initialized")
 
-    // Initialize App Open Ad Manager following Google guidelines
+    // Initialize App Open Ad Manager
+    // Note: Actual ad loading happens asynchronously in background
     val adUnitId = if (BuildConfig.DEBUG) TEST_AD_UNIT_ID else PROD_AD_UNIT_ID
     appOpenAdManager = AppOpenAdManager(this, adUnitId)
 
     // Increment launch count (for ad display logic)
     appOpenAdManager.incrementLaunchCount()
 
-    // Preload app open ad (will only load if launch count is sufficient)
+    // Preload app open ad (async, won't block startup)
     appOpenAdManager.preloadAd()
 
     Log.d(TAG, "📺 App Open Ad Manager initialized")

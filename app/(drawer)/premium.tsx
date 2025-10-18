@@ -2,24 +2,27 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { Crown, ArrowLeft } from 'lucide-react-native';
 
 export default function PremiumScreen() {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Premium</Text>
+        <Text style={[styles.headerTitle, { color: C.text }]}>Premium</Text>
       </View>
       <View style={styles.content}>
-        <View style={styles.card}>
-          <Crown size={32} color="#FFD54F" />
-          <Text style={styles.title}>Unlock more with Premium</Text>
-          <Text style={styles.subtitle}>Coming soon</Text>
-          <TouchableOpacity style={styles.cta} activeOpacity={0.8}>
-            <Text style={styles.ctaText}>Notify Me</Text>
+        <View style={[styles.card, { backgroundColor: C.surface }]}>
+          <Crown size={32} color={C.secondary} />
+          <Text style={[styles.title, { color: C.text }]}>Unlock more with Premium</Text>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>Coming soon</Text>
+          <TouchableOpacity style={[styles.cta, { backgroundColor: C.primary }]} activeOpacity={0.8}>
+            <Text style={[styles.ctaText, { color: C.surface }]}>Notify Me</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -61,4 +64,3 @@ const styles = StyleSheet.create({
   cta: { backgroundColor: Colors.light.primary, borderRadius: BorderRadius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl },
   ctaText: { color: Colors.light.surface, fontWeight: Typography.fontWeight.semibold },
 });
-

@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.json.JSONArray
 import org.json.JSONObject
@@ -42,6 +43,10 @@ class NotesFragment : Fragment() {
 
     private lateinit var notesRecyclerView: RecyclerView
     private lateinit var notesAdapter: NotesAdapter
+    private var gridLayoutManager: GridLayoutManager? = null
+    private var notesSection: View? = null
+    private var quickActionsSection: View? = null
+    private var dividerQuickActions: View? = null
     private var phoneNumber: String = ""
 
     override fun onCreateView(
@@ -63,12 +68,20 @@ class NotesFragment : Fragment() {
     private fun setupViews(view: View) {
         // Get RecyclerView from inflated layout
         notesRecyclerView = view.findViewById(R.id.recyclerNotes)
-        notesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        // Use grid layout to show more notes; 2 columns portrait, 3 landscape
+        val spanCount = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) 3 else 2
+        gridLayoutManager = GridLayoutManager(requireContext(), spanCount)
+        notesRecyclerView.layoutManager = gridLayoutManager
 
         notesAdapter = NotesAdapter { noteId ->
             openNoteInMainApp(noteId)
         }
         notesRecyclerView.adapter = notesAdapter
+
+        // Cache section views
+        notesSection = view.findViewById(R.id.notesSection)
+        quickActionsSection = view.findViewById(R.id.quickActionsSection)
+        dividerQuickActions = view.findViewById(R.id.dividerQuickActions)
 
         // Setup quick action buttons
         view.findViewById<View>(R.id.btnTextNote)?.setOnClickListener {
@@ -86,6 +99,14 @@ class NotesFragment : Fragment() {
         view.findViewById<View>(R.id.btnPhotoNote)?.setOnClickListener {
             createNewNote("photo")
         }
+
+        view.findViewById<View>(R.id.btnDocScan)?.setOnClickListener {
+            createNewNote("scan")
+        }
+
+        view.findViewById<View>(R.id.btnExtractText)?.setOnClickListener {
+            createNewNote("ocr")
+        }
     }
 
     private fun loadNotes() {
@@ -97,7 +118,7 @@ class NotesFragment : Fragment() {
             // Read notes list of IDs from JS storage
             val idsStr = mmkv?.decodeString("notes:list")
             if (idsStr.isNullOrEmpty()) {
-                showEmptyState()
+                showQuickActionsOnly()
                 return
             }
 
@@ -133,16 +154,18 @@ class NotesFragment : Fragment() {
             // Sort by updated time (most recent first) and take 10
             val recentNotes = notesList
                 .sortedByDescending { it.updatedAt }
-                .take(10)
+                .take(9)
 
             if (recentNotes.isEmpty()) {
-                showEmptyState()
+                showQuickActionsOnly()
             } else {
                 notesAdapter.setNotes(recentNotes)
+                updateGridSpanForItemCount()
+                showNotesAndActions()
             }
 
         } catch (e: Exception) {
-            showEmptyState()
+            showQuickActionsOnly()
         }
     }
 
@@ -163,9 +186,49 @@ class NotesFragment : Fragment() {
         return 0L
     }
 
-    private fun showEmptyState() {
-        // Show empty state - you could add a TextView to the layout for this
-        notesAdapter.setNotes(emptyList())
+    private fun showQuickActionsOnly() {
+        try {
+            // Hide notes section and divider, expand quick actions to fill space above banner
+            notesAdapter.setNotes(emptyList())
+            updateGridSpanForItemCount()
+            notesSection?.visibility = View.GONE
+            dividerQuickActions?.visibility = View.GONE
+            quickActionsSection?.let { section ->
+                val lp = section.layoutParams
+                if (lp is LinearLayout.LayoutParams) {
+                    lp.height = 0
+                    lp.weight = 1f
+                    section.layoutParams = lp
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun showNotesAndActions() {
+        try {
+            notesSection?.visibility = View.VISIBLE
+            dividerQuickActions?.visibility = View.VISIBLE
+            quickActionsSection?.let { section ->
+                val lp = section.layoutParams
+                if (lp is LinearLayout.LayoutParams) {
+                    lp.height = LinearLayout.LayoutParams.WRAP_CONTENT
+                    lp.weight = 0f
+                    section.layoutParams = lp
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun updateGridSpanForItemCount() {
+        try {
+            val glm = gridLayoutManager ?: return
+            val count = notesAdapter.itemCount
+            glm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    return if (count == 1) glm.spanCount else 1
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     private fun openNoteInMainApp(noteId: String) {

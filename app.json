@@ -30,6 +30,11 @@
       }
     },
     "android": {
+      "icon": "./assets/images/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FFF8E1"
+      },
       "package": "com.notesai.easynotes.ai.smart.notepad.ocr.docscanner.privatenotes",
       "newArchEnabled": true,
       "permissions": [
@@ -37,11 +42,7 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ],
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#FFF8E1"
-      }
+      ]
     },
     "web": {
       "bundler": "metro",

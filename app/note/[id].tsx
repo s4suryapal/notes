@@ -19,7 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
+import { useToast } from '@/lib/ToastContext';
 import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, DocumentScanner, TextExtractor } from '@/components';
 import type { DocumentScanResult, OCRResult } from '@/components';
 import { Note } from '@/types';
@@ -38,6 +40,7 @@ import {
   useAudioRecorder,
   useChecklistManager,
 } from '@/hooks/useNoteEditor';
+import { authenticateWithBiometrics } from '@/lib/biometric';
 
 export default function NoteEditorScreen() {
   const { id, mode, category } = useLocalSearchParams();
@@ -54,6 +57,9 @@ export default function NoteEditorScreen() {
     unlockNote,
     createCategory,
   } = useNotes();
+  const { showInfo } = useToast();
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   // State
   const [title, setTitle] = useState('');
@@ -155,12 +161,12 @@ export default function NoteEditorScreen() {
   const currentBackground = useMemo(() => getBackgroundById(selectedColor), [selectedColor]);
 
   const paletteIconColor = useMemo(() => {
-    if (!currentBackground) return Colors.light.textSecondary;
+    if (!currentBackground) return C.textSecondary;
     if (currentBackground.type === 'gradient' && currentBackground.gradient) {
       return currentBackground.gradient[0];
     }
-    return currentBackground.value || Colors.light.primary;
-  }, [currentBackground]);
+    return currentBackground.value || C.primary;
+  }, [currentBackground, C]);
 
   const actionNote = useMemo<Note | null>(() => {
     if (!actionNoteId) return null;
@@ -214,10 +220,17 @@ export default function NoteEditorScreen() {
           setTitle(note.title);
           if (note.is_locked) {
             const result = await unlockNote(id as string);
-            if (result.success && result.decryptedBody) {
+            if (result.success && typeof result.decryptedBody === 'string') {
               setBody(result.decryptedBody);
             } else {
-              Alert.alert('Authentication Failed', result.error || 'Could not unlock note', [
+              const err = (result.error || '').toLowerCase();
+              const cancelled = err.includes('cancel');
+              if (cancelled) {
+                showInfo('Unlock cancelled');
+                router.back();
+                return;
+              }
+              Alert.alert('Could not unlock', 'Please try again.', [
                 { text: 'OK', onPress: () => router.back() },
               ]);
               return;
@@ -268,6 +281,10 @@ export default function NoteEditorScreen() {
       setTimeout(() => audioRecorder.openRecorder(), 200);
     } else if (mode === 'checklist') {
       setTimeout(() => checklistManager.handleToggleChecklist(), 200);
+    } else if (mode === 'scan') {
+      setShowDocumentScanner(true);
+    } else if (mode === 'ocr') {
+      setShowTextExtractor(true);
     }
   }, [isNewNote, mode]);
 
@@ -332,17 +349,27 @@ export default function NoteEditorScreen() {
   };
 
   const handleBack = async () => {
-    if (title.trim() || hasActualContent(body)) {
-      await immediateSave({
-        title,
-        body,
-        categoryId: selectedCategory,
-        color: selectedColor,
-        images: imageManager.images,
-        audioRecordings: audioRecorder.audioRecordings,
-        checklistItems: checklistManager.checklistItems,
-      });
-    }
+    // Try to fetch freshest HTML from editor to avoid losing last keystrokes
+    let latestBody = body;
+    try {
+      const anyRef: any = richTextRef.current as any;
+      if (anyRef?.getContentHtml) {
+        const html = await anyRef.getContentHtml();
+        if (typeof html === 'string') latestBody = html;
+      }
+    } catch {}
+
+    // Always attempt an immediate save; saveNote will skip if truly empty
+    await immediateSave({
+      title,
+      body: latestBody,
+      categoryId: selectedCategory,
+      color: selectedColor,
+      images: imageManager.images,
+      audioRecordings: audioRecorder.audioRecordings,
+      checklistItems: checklistManager.checklistItems,
+    });
+
     router.back();
   };
 
@@ -375,19 +402,42 @@ export default function NoteEditorScreen() {
     if (!currentNoteId.current) return;
 
     const noteId = currentNoteId.current;
-    Alert.alert('Delete note', 'Move this note to trash?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteNote(noteId);
-          handleCloseActionsSheet();
-          router.back();
+    const persisted = notes.find(n => n.id === noteId);
+
+    const proceed = () => {
+      Alert.alert('Delete note', 'Move this note to trash?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteNote(noteId);
+            handleCloseActionsSheet();
+            router.back();
+          },
         },
-      },
-    ]);
-  }, [deleteNote, handleCloseActionsSheet]);
+      ]);
+    };
+
+    const maybeAuth = async () => {
+      if (persisted?.is_locked) {
+        const auth = await authenticateWithBiometrics('Authenticate to delete note');
+        if (!auth.success) {
+          const err = (auth.error || '').toLowerCase();
+          if (err.includes('cancel')) {
+            showInfo('Delete cancelled');
+            handleCloseActionsSheet();
+            return;
+          }
+          Alert.alert('Authentication required', 'Could not verify identity.');
+          return;
+        }
+      }
+      proceed();
+    };
+
+    void maybeAuth();
+  }, [deleteNote, handleCloseActionsSheet, notes, showInfo]);
 
   const handleCreateCategory = useCallback(async (name: string) => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
@@ -451,9 +501,9 @@ export default function NoteEditorScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.light.primary} />
+          <ActivityIndicator size="large" color={C.primary} />
           <Text style={styles.loadingText}>Loading note...</Text>
         </View>
       </SafeAreaView>
@@ -461,7 +511,7 @@ export default function NoteEditorScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
       {/* Header */}
       <NoteEditorHeader
         onBack={handleBack}
@@ -499,9 +549,9 @@ export default function NoteEditorScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <TextInput
-              style={styles.titleInput}
+              style={[styles.titleInput, { color: C.text }]}
               placeholder="Title"
-              placeholderTextColor={Colors.light.textTertiary}
+              placeholderTextColor={C.textTertiary}
               value={title}
               onChangeText={handleTitleChange}
               multiline
@@ -542,8 +592,8 @@ export default function NoteEditorScreen() {
                 }}
                 editorStyle={{
                   backgroundColor: 'transparent',
-                  placeholderColor: Colors.light.textTertiary,
-                  color: Colors.light.text,
+                  placeholderColor: C.textTertiary,
+                  color: C.text,
                   contentCSSText: `
                     font-size: ${Typography.fontSize.md}px;
                     line-height: ${Typography.fontSize.md * Typography.lineHeight.normal}px;
@@ -612,12 +662,12 @@ export default function NoteEditorScreen() {
               actions.redo,
             ]}
             iconMap={{
-              checklist: () => <CheckSquare size={20} color={checklistManager.showChecklist ? Colors.light.primary : Colors.light.text} />,
-              scanner: () => <ScanText size={20} color={Colors.light.text} />,
-              ocr: () => <FileText size={20} color={Colors.light.text} />,
-              camera: () => <Camera size={20} color={Colors.light.text} />,
-              gallery: () => <ImageIcon size={20} color={Colors.light.text} />,
-              microphone: () => <Mic size={20} color={Colors.light.text} />,
+              checklist: () => <CheckSquare size={20} color={checklistManager.showChecklist ? C.primary : C.text} />,
+              scanner: () => <ScanText size={20} color={C.text} />,
+              ocr: () => <FileText size={20} color={C.text} />,
+              camera: () => <Camera size={20} color={C.text} />,
+              gallery: () => <ImageIcon size={20} color={C.text} />,
+              microphone: () => <Mic size={20} color={C.text} />,
               palette: () => <Palette size={20} color={paletteIconColor} />,
             }}
             checklist={handleToggleChecklistWithSave}
@@ -628,21 +678,21 @@ export default function NoteEditorScreen() {
             microphone={audioRecorder.openRecorder}
             palette={() => setShowColorPicker(true)}
             style={styles.richToolbar}
-            selectedIconTint={Colors.light.primary}
-            iconTint={Colors.light.text}
-            disabledIconTint={Colors.light.textTertiary}
+            selectedIconTint={C.primary}
+            iconTint={C.text}
+            disabledIconTint={C.textTertiary}
           />
         </View>
       </KeyboardAvoidingView>
 
       {/* Modals */}
       <Modal visible={showColorPicker} transparent animationType="slide" onRequestClose={() => setShowColorPicker(false)} statusBarTranslucent>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowColorPicker(false)}>
-          <Pressable style={styles.backgroundPickerModal} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowColorPicker(false)}>
+          <Pressable style={[styles.backgroundPickerModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Background</Text>
+              <Text style={[styles.modalTitle, { color: C.text }]}>Choose Background</Text>
               <TouchableOpacity onPress={() => setShowColorPicker(false)}>
-                <Check size={24} color={Colors.light.primary} />
+                <Check size={24} color={C.primary} />
               </TouchableOpacity>
             </View>
             <BackgroundPicker selectedBackground={selectedColor} onBackgroundSelect={handleColorChange} />

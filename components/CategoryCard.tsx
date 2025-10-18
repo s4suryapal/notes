@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { Category } from '@/types';
 
 interface CategoryCardProps {
@@ -10,14 +11,16 @@ interface CategoryCardProps {
 }
 
 export const CategoryCard = React.memo(function CategoryCard({ category, noteCount, onPress }: CategoryCardProps) {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.content}>
+      <View style={[styles.content, { backgroundColor: C.surface }]}>
         <View style={[styles.colorTab, { backgroundColor: category.color }]} />
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{noteCount}</Text>
+        <View style={[styles.countBadge, { backgroundColor: C.borderLight }]}>
+          <Text style={[styles.countText, { color: C.textSecondary }]}>{noteCount}</Text>
         </View>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, { color: C.text }]} numberOfLines={1}>
           {category.name}
         </Text>
       </View>

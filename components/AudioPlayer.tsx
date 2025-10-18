@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, AppState, AppStateStatus } fr
 import { Audio } from 'expo-av';
 import { Play, Pause, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/lib/ToastContext';
 
 interface AudioPlayerProps {
@@ -19,6 +20,8 @@ export default function AudioPlayer({ uri, onDelete, index }: AudioPlayerProps) 
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const { showInfo } = useToast();
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   useEffect(() => {
     loadSound();
@@ -90,34 +93,34 @@ export default function AudioPlayer({ uri, onDelete, index }: AudioPlayerProps) 
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+    <View style={[styles.container, { backgroundColor: C.surface, borderColor: C.borderLight }]}>
+      <TouchableOpacity style={[styles.playButton, { backgroundColor: C.borderLight }]} onPress={handlePlayPause}>
         {isPlaying ? (
-          <Pause size={20} color={Colors.light.primary} />
+          <Pause size={20} color={C.primary} />
         ) : (
-          <Play size={20} color={Colors.light.primary} />
+          <Play size={20} color={C.primary} />
         )}
       </TouchableOpacity>
 
       <View style={styles.info}>
-        <Text style={styles.label}>Recording {index + 1}</Text>
+        <Text style={[styles.label, { color: C.text }]}>Recording {index + 1}</Text>
         <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, { backgroundColor: C.borderLight }]}>
             <View
               style={[
                 styles.progress,
-                { width: duration > 0 ? `${(position / duration) * 100}%` : '0%' },
+                { width: duration > 0 ? `${(position / duration) * 100}%` : '0%', backgroundColor: C.primary },
               ]}
             />
           </View>
-          <Text style={styles.time}>
+          <Text style={[styles.time, { color: C.textSecondary }]}>
             {formatTime(position)} / {formatTime(duration)}
           </Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-        <Trash2 size={18} color={Colors.light.error} />
+        <Trash2 size={18} color={C.error} />
       </TouchableOpacity>
     </View>
   );

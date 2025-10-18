@@ -13,11 +13,12 @@ import { ToastProvider } from '@/lib/ToastContext';
 import { ErrorBoundary } from '@/components';
 import { setupPersistentNotification, handleNotificationResponse } from '@/lib/persistentNotification';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useAppOpenAd } from '@/hooks/useAppOpenAd';
 import analytics from '@/services/analytics';
 import crashlytics from '@/services/crashlytics';
 import { initGlobalErrorHandler } from '@/services/globalErrorHandler';
 import admobService from '@/services/admob';
+import remoteConfig from '@/services/remoteConfig';
+import { useAppOpenAdControl } from '@/hooks/useAppOpenAdControl';
 
 // Keep the splash screen visible while we fetch resources
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -26,80 +27,151 @@ function AppNavigation() {
   const router = useRouter();
   const pathname = usePathname();
   const { isFirstLaunch, isLoading } = useLanguage();
-  const { showAd, preloadAd, isAdReady } = useAppOpenAd();
   const [isInitialized, setIsInitialized] = useState(false);
-  const [hasNavigated, setHasNavigated] = useState(false);
   const hasHiddenRef = useRef(false);
+  const appOpenAd = useAppOpenAdControl();
 
-  // Initialize Firebase and AdMob, then show App Open Ad
+  // ⚡ SPLASH & INITIALIZATION FLOW
+  // This controls when the native splash screen is dismissed
+  //
+  // Launch Flow (First & Subsequent):
+  // 1. Initialize critical services (AdMob SDK for banner ads)
+  // 2. Wait for LanguageContext to load (determines first-launch state)
+  // 3. Hide splash → Show app
+  //    (Banner ads load with shimmer, no blocking wait needed)
+  // 4. Defer Firebase + Remote Config + AppOpen ads to BACKGROUND
+  //
+  // Note: AppOpen ads are handled separately by native AppOpenAdManager
+  // They only show when returning from background, NOT on app launch
+  // Remote Config is fetched in background since it's not needed immediately
+  //
+  // Safety: 5s maximum splash time (see useEffect below)
   useEffect(() => {
     if (isInitialized) return;
 
     let cancelled = false;
     (async () => {
       try {
-        // Initialize Firebase services
-        await crashlytics.initialize();
-        console.log('[FIREBASE] Crashlytics initialized');
+        console.log('[SPLASH] 🚀 Starting app initialization...');
+        const startTime = Date.now();
 
-        initGlobalErrorHandler();
-        console.log('[FIREBASE] Global error handler initialized');
-
-        await analytics.initialize();
-        await analytics.logAppOpen();
-        console.log('[FIREBASE] Analytics initialized');
-
-        // Initialize AdMob
+        // Step 1: Initialize CRITICAL services only (AdMob for banner ads)
         await admobService.initialize();
-        console.log('[ADMOB] AdMob initialized');
+        console.log('[ADMOB] ✅ AdMob SDK initialized');
 
-        // Wait for language context to load
-        let waitCount = 0;
-        while (isLoading && waitCount < 20) {
-          await new Promise(r => setTimeout(r, 50));
-          waitCount++;
-        }
-
-        // Load and show App Open Ad if not first launch
-        if (!isFirstLaunch && !isLoading) {
-          console.log('🔍 Attempting to load AppOpen ad...');
-          try {
-            // Preload ad if not ready
-            if (!isAdReady()) {
-              await preloadAd('app-launch');
-            }
-
-            const start = Date.now();
-            // Wait up to 5s for ad to load
-            while (!cancelled && !isAdReady() && Date.now() - start < 5000) {
-              await new Promise(r => setTimeout(r, 150));
-            }
-
-            // Show ad if ready
-            if (!cancelled && isAdReady()) {
-              console.log('🔍 Ad ready - showing now');
-              await showAd({ reason: 'app-launch', skipConditions: [] });
-            } else {
-              console.log('🔍 Ad timeout or not ready - skipping');
-            }
-          } catch (e) {
-            console.log('🔍 Ad flow error:', (e as any)?.toString?.());
+        // Step 2: Wait for language context to load (determines isFirstLaunch)
+        // Use promise-based approach instead of polling for better performance
+        await new Promise<void>((resolve) => {
+          if (!isLoading) {
+            resolve();
+            return;
           }
-        } else {
-          console.log('🔍 First launch or context loading - skipping ad');
-        }
 
-        // Hide native splash and proceed
+          let checkInterval: NodeJS.Timeout | null = null;
+          let timeoutTimer: NodeJS.Timeout | null = null;
+
+          checkInterval = setInterval(() => {
+            if (!isLoading) {
+              if (checkInterval) clearInterval(checkInterval);
+              if (timeoutTimer) clearTimeout(timeoutTimer);
+              resolve();
+            }
+          }, 16); // Check every frame (~60fps) for responsive UI
+
+          // Safety timeout after 1 second
+          timeoutTimer = setTimeout(() => {
+            if (checkInterval) clearInterval(checkInterval);
+            console.warn('[CONTEXT] ⚠️  Language context load timeout');
+            resolve();
+          }, 1000);
+        });
+        console.log('[CONTEXT] ✅ Language context loaded', { isFirstLaunch, isLoading });
+
+        // Step 3: Hide native splash and proceed to app immediately
+        // Note: Remote Config + AppOpen ads deferred to background (not needed immediately)
         if (!cancelled) {
-          console.log('🔍 Hiding native splash');
+          const totalTime = Date.now() - startTime;
+          console.log(`[SPLASH] ✅ Initialization complete (${totalTime}ms) - hiding splash`);
+
           if (!hasHiddenRef.current) {
             await SplashScreen.hideAsync();
             hasHiddenRef.current = true;
+            console.log('[SPLASH] 👋 Native splash hidden - app visible');
           }
           setIsInitialized(true);
+
+          // Step 4: Initialize non-critical services in BACKGROUND
+          // This doesn't block the user from seeing the app
+          // Includes: Firebase (Crashlytics, Analytics) + Remote Config + AppOpen ads
+          setTimeout(() => {
+            (async () => {
+              try {
+                console.log('[BACKGROUND] 🔄 Background init starting...');
+
+                // Initialize Firebase services in PARALLEL for faster startup
+                const [crashlyticsResult, analyticsResult] = await Promise.allSettled([
+                  crashlytics.initialize(),
+                  analytics.initialize(),
+                ]);
+
+                console.log('[FIREBASE] ✅ Crashlytics initialized (background):', crashlyticsResult.status);
+                console.log('[FIREBASE] ✅ Analytics initialized (background):', analyticsResult.status);
+
+                // Error handler can be initialized immediately (sync operation)
+                initGlobalErrorHandler();
+                console.log('[FIREBASE] ✅ Error handler initialized (background)');
+
+                // Log app open after analytics is ready
+                if (analyticsResult.status === 'fulfilled') {
+                  await analytics.logAppOpen();
+                }
+
+                // Initialize Remote Config and configure AppOpen ads
+                console.log('[REMOTE_CONFIG] 🔄 Fetching AppOpen ad configuration...');
+                const initialized = await remoteConfig.initialize();
+
+                if (initialized) {
+                  console.log('[REMOTE_CONFIG] ✅ Remote Config initialized (background)');
+
+                  const appOpenConfig = remoteConfig.getAppOpenAdConfig();
+                  console.log('[APPOPEN] 📺 Configuring AppOpen ads from Remote Config:', appOpenConfig);
+
+                  // Set global enabled/disabled state
+                  await appOpenAd.setEnabled(appOpenConfig.enabled);
+
+                  // Configure which screens should show AppOpen ads
+                  if (appOpenConfig.enabledScreens.length > 0) {
+                    appOpenAd.setEnabledScreens(appOpenConfig.enabledScreens);
+                    console.log('[APPOPEN] ✅ Enabled screens:', appOpenConfig.enabledScreens);
+                  } else {
+                    appOpenAd.setEnabledScreens([]);
+                    console.log('[APPOPEN] ✅ Enabled on ALL screens');
+                  }
+
+                  // Set ad unit ID (check screen-specific settings)
+                  if (appOpenConfig.settingsScreen.enabled && appOpenConfig.settingsScreen.adUnitId) {
+                    appOpenAd.setAdUnitId(appOpenConfig.settingsScreen.adUnitId);
+                    console.log('[APPOPEN] ✅ Using settings screen ad unit ID');
+                  } else {
+                    appOpenAd.setAdUnitId(null);
+                    console.log('[APPOPEN] ✅ Using default ad unit ID');
+                  }
+
+                  console.log('[APPOPEN] ✅ AppOpen ads configured from Remote Config (background)');
+                } else {
+                  console.log('[REMOTE_CONFIG] ⚠️  Using default AppOpen ad configuration');
+                  // AppOpen ads will use default settings from native
+                }
+
+                console.log('[BACKGROUND] ✅ All background services initialized');
+              } catch (error) {
+                console.log('[BACKGROUND] ⚠️  Background init failed:', error);
+              }
+            })();
+          }, 100);
         }
       } catch (error) {
-        console.log('[INIT] Initialization error:', error);
+        console.log('[SPLASH] ❌ Initialization error:', error);
         // Ensure splash hides even on error
         try {
           if (!hasHiddenRef.current) {
@@ -114,11 +186,11 @@ function AppNavigation() {
     return () => { cancelled = true; };
   }, [isInitialized]);
 
-  // Safety: hide native splash after 10s max
+  // Safety: hide native splash after 5s max
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!isInitialized) {
-        console.log('⏳ Safety timeout - hiding native splash after 10s');
+        console.log('⏳ SAFETY TIMEOUT - forcing splash hide after 5s');
         try {
           if (!hasHiddenRef.current) {
             await SplashScreen.hideAsync();
@@ -127,18 +199,12 @@ function AppNavigation() {
         } catch {}
         setIsInitialized(true);
       }
-    }, 10000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [isInitialized]);
 
-  // Optionally preload next ad after initialization when not first launch
-  useEffect(() => {
-    if (!isLoading && isInitialized && !isFirstLaunch) {
-      setTimeout(() => {
-        preloadAd('next-app-launch');
-      }, 1000);
-    }
-  }, [isLoading, isInitialized, isFirstLaunch, preloadAd]);
+  // Note: AppOpen ad preloading removed - handled by native AppOpenAdManager
+  // Ads only show when returning from background, not on app launch
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -180,16 +246,26 @@ export default function RootLayout() {
   }, [pathname]);
 
   useEffect(() => {
+    let mounted = true;
+
     // Setup persistent notification if permissions are already granted (won't request permission)
     // For first-time users, this is set up in the permissions screen
     const initNotifications = async () => {
-      await setupPersistentNotification();
+      try {
+        await setupPersistentNotification();
+      } catch (error) {
+        console.error('[NOTIFICATIONS] Setup failed:', error);
+      }
     };
 
-    initNotifications();
+    if (mounted) {
+      initNotifications();
+    }
 
     // Listen for notification interactions
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (!mounted) return;
+
       const result = handleNotificationResponse(response);
 
       if (result) {
@@ -216,6 +292,8 @@ export default function RootLayout() {
     let openNoteSubscription: any;
     if (Platform.OS === 'android') {
       nativeSubscription = DeviceEventEmitter.addListener('onNotificationAction', (actionType: string) => {
+        if (!mounted) return;
+
         console.log('Native notification action:', actionType);
         switch (actionType) {
           case 'text':
@@ -238,6 +316,8 @@ export default function RootLayout() {
 
       // Listen for create note action from CallEndActivity
       createNoteSubscription = DeviceEventEmitter.addListener('onCreateNote', (noteType: string) => {
+        if (!mounted) return;
+
         console.log('Create note from CallEnd:', noteType);
         switch (noteType) {
           case 'text':
@@ -252,6 +332,12 @@ export default function RootLayout() {
           case 'photo':
             router.push('/note/new?mode=photo');
             break;
+          case 'scan':
+            router.push('/note/new?mode=scan');
+            break;
+          case 'ocr':
+            router.push('/note/new?mode=ocr');
+            break;
           case 'drawing':
             router.push('/note/new?mode=drawing');
             break;
@@ -262,6 +348,8 @@ export default function RootLayout() {
 
       // Listen for open note action from CallEndActivity
       openNoteSubscription = DeviceEventEmitter.addListener('onOpenNote', (noteId: string) => {
+        if (!mounted) return;
+
         console.log('Open note from CallEnd:', noteId);
         if (noteId) {
           router.push(`/note/${noteId}`);
@@ -270,6 +358,7 @@ export default function RootLayout() {
     }
 
     return () => {
+      mounted = false;
       subscription.remove();
       if (nativeSubscription) {
         nativeSubscription.remove();
@@ -281,7 +370,7 @@ export default function RootLayout() {
         openNoteSubscription.remove();
       }
     };
-  }, []);
+  }, [router]); // Include router in dependencies to prevent stale closure
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>

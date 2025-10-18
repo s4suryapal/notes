@@ -16,7 +16,8 @@ export async function setupPersistentNotification() {
     return; // Only for Android
   }
 
-  // Check if we already have permission (don't request here)
+  // Check permission only — do NOT request here.
+  // Permissions are requested explicitly on the permissions screen.
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') {
     console.log('Notification permissions not granted - skipping notification setup');
@@ -24,18 +25,16 @@ export async function setupPersistentNotification() {
   }
 
   // Set notification channel for Android
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('persistent-notes', {
-      name: 'Quick Notes',
-      importance: Notifications.AndroidImportance.LOW,
-      sound: null,
-      vibrationPattern: null,
-      enableLights: false,
-      enableVibrate: false,
-      showBadge: false,
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    });
-  }
+  await Notifications.setNotificationChannelAsync('persistent-notes', {
+    name: 'Quick Notes',
+    importance: Notifications.AndroidImportance.LOW,
+    sound: null,
+    vibrationPattern: null,
+    enableLights: false,
+    enableVibrate: false,
+    showBadge: false,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
 
   // Define notification categories with actions
   await Notifications.setNotificationCategoryAsync('quick-note-actions', [
@@ -62,16 +61,21 @@ export async function setupPersistentNotification() {
     },
   ]);
 
+  // Remove existing notifications to avoid duplicates
+  try { await Notifications.dismissAllNotificationsAsync(); } catch {}
+
   // Create persistent notification with actions
   await Notifications.scheduleNotificationAsync({
-    content: {
+    content: ({
       title: 'NotesAI',
       body: 'Quick note actions',
       sticky: true,
       priority: Notifications.AndroidNotificationPriority.LOW,
       data: { action: 'create_note' },
       categoryIdentifier: 'quick-note-actions',
-    },
+      // Ensure the notification posts to the intended channel (Android)
+      channelId: 'persistent-notes',
+    } as any),
     trigger: null, // Show immediately
   });
 }

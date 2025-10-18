@@ -163,19 +163,12 @@ class MessagesFragment : Fragment() {
 
     private fun shareMessage(message: String) {
         try {
-            val phone = arguments?.getString(ARG_PHONE) ?: ""
-            val uri = Uri.parse("smsto:$phone")
-            val intent = Intent(Intent.ACTION_SENDTO, uri).apply {
-                putExtra("sms_body", message)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, message)
             }
-            startActivity(intent)
-        } catch (_: Exception) {
-            try {
-                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))
-                intent.putExtra("sms_body", message)
-                startActivity(intent)
-            } catch (_: Exception) {}
-        }
+            startActivity(Intent.createChooser(intent, "Share message"))
+        } catch (_: Exception) {}
     }
 
     private fun hideKeyboard() {

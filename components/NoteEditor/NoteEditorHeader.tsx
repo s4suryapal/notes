@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ArrowLeft, Search, Check, MoreVertical, ChevronDown } from 'lucide-react-native';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface NoteEditorHeaderProps {
   onBack: () => void;
@@ -19,38 +20,40 @@ export function NoteEditorHeader({
   onCategoryPress,
   hasNoteId,
 }: NoteEditorHeaderProps) {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.borderLight }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={onBack} style={styles.iconButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notes</Text>
+        <Text style={[styles.headerTitle, { color: C.text }]}>Notes</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={onSearch} style={styles.iconButton}>
-            <Search size={20} color={Colors.light.text} />
+            <Search size={20} color={C.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={onBack} style={styles.iconButton}>
-            <Check size={24} color={Colors.light.text} />
+            <Check size={24} color={C.text} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onMore}
             style={[styles.iconButton, !hasNoteId && styles.iconButtonDisabled]}
             disabled={!hasNoteId}
           >
-            <MoreVertical size={24} color={Colors.light.text} />
+            <MoreVertical size={24} color={C.text} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Timestamp & Category Row */}
       <View style={styles.metaRow}>
-        <Text style={styles.timestamp}>
+        <Text style={[styles.timestamp, { color: C.textSecondary }]}>
           {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
         </Text>
         <TouchableOpacity style={styles.categoryDropdown} onPress={onCategoryPress}>
-          <Text style={styles.categoryDropdownText}>{categoryName || 'All'}</Text>
-          <ChevronDown size={16} color={Colors.light.text} />
+          <Text style={[styles.categoryDropdownText, { color: C.text }]}>{categoryName || 'All'}</Text>
+          <ChevronDown size={16} color={C.text} />
         </TouchableOpacity>
       </View>
     </View>

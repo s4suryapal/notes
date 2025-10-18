@@ -4,6 +4,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Trash2, Archive } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { NoteCard } from './NoteCard';
 import { Note } from '@/types';
 
@@ -31,6 +32,8 @@ export const SwipeableNoteCard = React.memo(function SwipeableNoteCard({
   isSelected = false,
 }: SwipeableNoteCardProps) {
   const swipeableRef = useRef<Swipeable>(null);
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   const renderLeftActions = (
     progress: Animated.AnimatedInterpolation<number>,
@@ -43,7 +46,7 @@ export const SwipeableNoteCard = React.memo(function SwipeableNoteCard({
     });
 
     return (
-      <View style={styles.leftAction}>
+      <View style={[styles.leftAction, { backgroundColor: C.info }]}>
         <Animated.View style={{ transform: [{ scale }] }}>
           <Archive size={24} color="#FFFFFF" />
         </Animated.View>
@@ -62,7 +65,7 @@ export const SwipeableNoteCard = React.memo(function SwipeableNoteCard({
     });
 
     return (
-      <View style={styles.rightAction}>
+      <View style={[styles.rightAction, { backgroundColor: C.error }]}>
         <Animated.View style={{ transform: [{ scale }] }}>
           <Trash2 size={24} color="#FFFFFF" />
         </Animated.View>

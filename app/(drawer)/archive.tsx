@@ -4,11 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Archive, ArrowLeft } from 'lucide-react-native';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
 import { NoteCard, EmptyState, NoteActionsSheet } from '@/components';
 import type { Note } from '@/types';
 
 export default function ArchiveScreen() {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const { notes, toggleArchive, deleteNote } = useNotes();
   const [archivedNotes, setArchivedNotes] = useState<Note[]>([]);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
@@ -77,15 +80,15 @@ export default function ArchiveScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Archive size={24} color={Colors.light.primary} />
-          <Text style={styles.headerTitle}>Archive</Text>
-          <Text style={styles.headerCount}>
+          <Archive size={24} color={C.primary} />
+          <Text style={[styles.headerTitle, { color: C.text }]}>Archive</Text>
+          <Text style={[styles.headerCount, { color: C.textSecondary }]}>
             {archivedNotes.length} {archivedNotes.length === 1 ? 'note' : 'notes'}
           </Text>
         </View>

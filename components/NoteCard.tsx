@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { MoreVertical, Star, CheckCircle2, Circle, Lock, Image as ImageIcon, Mic, CheckSquare } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BackgroundPattern } from '@/components';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { HighlightedText } from './HighlightedText';
 import { getBackgroundById } from './BackgroundPicker';
 import { Note } from '@/types';
@@ -50,6 +52,8 @@ export const NoteCard = React.memo(function NoteCard({
   selectionMode = false,
   isSelected = false
 }: NoteCardProps) {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   const [menuPressing, setMenuPressing] = useState(false);
   const formattedDate = new Date(note.updated_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -83,14 +87,14 @@ export const NoteCard = React.memo(function NoteCard({
           <View style={styles.header}>
             {selectionMode ? (
               isSelected ? (
-                <CheckCircle2 size={24} color={Colors.light.primary} fill={Colors.light.primary} />
+                <CheckCircle2 size={24} color={C.primary} fill={C.primary} />
               ) : (
-                <Circle size={24} color={Colors.light.borderLight} />
+                <Circle size={24} color={C.borderLight} />
               )
             ) : (
               note.is_favorite && (
                 <View style={styles.headerIcons}>
-                  <Star size={18} color={Colors.light.secondary} fill={Colors.light.secondary} />
+                  <Star size={18} color={C.secondary} fill={C.secondary} />
                 </View>
               )
             )}
@@ -100,9 +104,9 @@ export const NoteCard = React.memo(function NoteCard({
         {note.is_locked ? (
           // Show locked message instead of content
           <View style={styles.lockedContent}>
-            <Lock size={20} color={Colors.light.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.lockedText}>Locked</Text>
-            <Text style={styles.lockedSubtext}>Tap to unlock</Text>
+            <Lock size={20} color={C.textSecondary} strokeWidth={1.5} />
+            <Text style={[styles.lockedText, { color: C.text }]}>Locked</Text>
+            <Text style={[styles.lockedSubtext, { color: C.textTertiary }]}>Tap to unlock</Text>
           </View>
         ) : (
           <>
@@ -111,11 +115,11 @@ export const NoteCard = React.memo(function NoteCard({
                 <HighlightedText
                   text={note.title}
                   searchQuery={searchQuery}
-                  style={styles.title}
+                  style={[styles.title, { color: C.text }]}
                   numberOfLines={2}
                 />
               ) : (
-                <Text style={styles.title} numberOfLines={2}>
+                <Text style={[styles.title, { color: C.text }]} numberOfLines={2}>
                   {note.title}
                 </Text>
               )
@@ -124,9 +128,9 @@ export const NoteCard = React.memo(function NoteCard({
               <View style={styles.checklistPreview}>
                 {note.checklist_items.slice(0, 2).map((item) => (
                   <View key={item.id} style={styles.checklistItem}>
-                    <Text style={styles.checklistIcon}>{item.completed ? '☑' : '☐'}</Text>
+                    <Text style={[styles.checklistIcon, { color: C.textSecondary }]}>{item.completed ? '☑' : '☐'}</Text>
                     <Text
-                      style={[styles.checklistText, item.completed && styles.checklistTextCompleted]}
+                      style={[styles.checklistText, { color: C.text }, item.completed && { color: C.textSecondary }]}
                       numberOfLines={1}
                     >
                       {item.text || 'Empty item'}
@@ -134,7 +138,7 @@ export const NoteCard = React.memo(function NoteCard({
                   </View>
                 ))}
                 {note.checklist_items.length > 2 && (
-                  <Text style={styles.checklistMore}>
+                  <Text style={[styles.checklistMore, { color: C.textTertiary }]}>
                     +{note.checklist_items.length - 2} more
                   </Text>
                 )}
@@ -144,11 +148,11 @@ export const NoteCard = React.memo(function NoteCard({
                 <HighlightedText
                   text={plainTextBody.substring(0, 100) + (plainTextBody.length > 100 ? '...' : '')}
                   searchQuery={searchQuery}
-                  style={styles.body}
+                  style={[styles.body, { color: C.textSecondary }]}
                   numberOfLines={2}
                 />
               ) : (
-                <Text style={styles.body} numberOfLines={2}>
+                <Text style={[styles.body, { color: C.textSecondary }]} numberOfLines={2}>
                   {plainTextBody.substring(0, 100) + (plainTextBody.length > 100 ? '...' : '')}
                 </Text>
               )
@@ -157,13 +161,13 @@ export const NoteCard = React.memo(function NoteCard({
         )}
 
         {/* Metadata Footer */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' }]}>
           <View style={styles.metadataRow}>
             {/* Checklist indicator */}
             {checklistProgress && (
               <View style={styles.metadataItem}>
-                <CheckSquare size={12} color={Colors.light.textTertiary} />
-                <Text style={styles.metadataText}>
+                <CheckSquare size={12} color={C.textTertiary} />
+                <Text style={[styles.metadataText, { color: C.textTertiary }]}>
                   {checklistProgress.completed}/{checklistProgress.total}
                 </Text>
               </View>
@@ -172,9 +176,9 @@ export const NoteCard = React.memo(function NoteCard({
             {/* Images indicator */}
             {note.images && note.images.length > 0 && (
               <View style={styles.metadataItem}>
-                <ImageIcon size={12} color={Colors.light.textTertiary} />
+                <ImageIcon size={12} color={C.textTertiary} />
                 {note.images.length > 1 && (
-                  <Text style={styles.metadataText}>{note.images.length}</Text>
+                  <Text style={[styles.metadataText, { color: C.textTertiary }]}>{note.images.length}</Text>
                 )}
               </View>
             )}
@@ -182,9 +186,9 @@ export const NoteCard = React.memo(function NoteCard({
             {/* Audio indicator */}
             {note.audio_recordings && note.audio_recordings.length > 0 && (
               <View style={styles.metadataItem}>
-                <Mic size={12} color={Colors.light.textTertiary} />
+                <Mic size={12} color={C.textTertiary} />
                 {note.audio_recordings.length > 1 && (
-                  <Text style={styles.metadataText}>{note.audio_recordings.length}</Text>
+                  <Text style={[styles.metadataText, { color: C.textTertiary }]}>{note.audio_recordings.length}</Text>
                 )}
               </View>
             )}
@@ -192,12 +196,12 @@ export const NoteCard = React.memo(function NoteCard({
             {/* Lock indicator */}
             {note.is_locked && (
               <View style={styles.metadataItem}>
-                <Lock size={12} color={Colors.light.textTertiary} />
+                <Lock size={12} color={C.textTertiary} />
               </View>
             )}
 
             {/* Date */}
-            <Text style={styles.date}>{formattedDate}</Text>
+            <Text style={[styles.date, { color: C.textTertiary }]}>{formattedDate}</Text>
           </View>
 
           {/* Menu button */}
@@ -212,7 +216,7 @@ export const NoteCard = React.memo(function NoteCard({
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             android_ripple={{ color: 'transparent' }}
           >
-            <MoreVertical size={18} color={Colors.light.textTertiary} />
+            <MoreVertical size={18} color={C.textTertiary} />
           </Pressable>
         </View>
       </View>
@@ -228,7 +232,11 @@ export const NoteCard = React.memo(function NoteCard({
         onPress={onPress}
         onLongPress={onLongPress}
         android_ripple={{ color: 'transparent' }}
-        style={({ pressed }) => [styles.containerNoPadding, pressed && !menuPressing ? pressedStyle : null]}
+        style={({ pressed }) => [
+          styles.containerNoPadding,
+          { backgroundColor: C.surface },
+          pressed && !menuPressing ? pressedStyle : null,
+        ]}
       >
         <LinearGradient
           colors={background.gradient as [string, string, ...string[]]}
@@ -248,11 +256,24 @@ export const NoteCard = React.memo(function NoteCard({
         onPress={onPress}
         onLongPress={onLongPress}
         android_ripple={{ color: 'transparent' }}
-        style={({ pressed }) => [styles.container, { backgroundColor: background.value || Colors.light.surface }, pressed && !menuPressing ? pressedStyle : null]}
+        style={({ pressed }) => [
+          styles.container,
+          { backgroundColor: background.value || C.surface },
+          pressed && !menuPressing ? pressedStyle : null,
+        ]}
       >
-        {background.pattern === 'grid' && <View style={styles.gridPattern} />}
+        {/* SVG-like patterns */}
+        {background.pattern && ['grid','dotgrid','lines','checks','hexagon','isometric','music'].includes(background.pattern) && (
+          <BackgroundPattern pattern={background.pattern as any} />
+        )}
+        {/* Emoji patterns */}
         {background.pattern === 'floral' && <Text style={styles.patternEmoji}>🌸</Text>}
         {background.pattern === 'strawberry' && <Text style={styles.patternEmoji}>🍓</Text>}
+        {background.pattern === 'leaf' && <Text style={styles.patternEmoji}>🍃</Text>}
+        {background.pattern === 'tree' && <Text style={styles.patternEmoji}>🌳</Text>}
+        {background.pattern === 'cloud' && <Text style={styles.patternEmoji}>☁️</Text>}
+        {background.pattern === 'star' && <Text style={styles.patternEmoji}>⭐</Text>}
+        {background.pattern === 'heart' && <Text style={styles.patternEmoji}>💕</Text>}
         {renderCardContent()}
       </Pressable>
     );
@@ -264,7 +285,11 @@ export const NoteCard = React.memo(function NoteCard({
       onPress={onPress}
       onLongPress={onLongPress}
       android_ripple={{ color: 'transparent' }}
-      style={({ pressed }) => [styles.container, background?.value && { backgroundColor: background.value }, pressed && !menuPressing ? pressedStyle : null]}
+      style={({ pressed }) => [
+        styles.container,
+        { backgroundColor: background?.value || C.surface },
+        pressed && !menuPressing ? pressedStyle : null,
+      ]}
     >
       {renderCardContent()}
     </Pressable>

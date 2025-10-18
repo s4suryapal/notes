@@ -20,7 +20,10 @@ import {
 } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useNotes } from '@/lib/NotesContext';
-import { exportAllData, importAllData, clearAllData, resetOnboarding } from '@/lib/storage';
+import { exportAllData, exportCurrentNotes, importAllData, clearAllData, resetOnboarding } from '@/lib/storage';
+import * as FileSystem from 'expo-file-system';
+import { Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useToast } from '@/lib/ToastContext';
 import { setupPersistentNotification, removePersistentNotification } from '@/lib/persistentNotification';
 import { useTheme } from '@/hooks/useTheme';
@@ -132,6 +135,41 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Export error:', error);
       showError('Failed to export data');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleBackupNotes = async () => {
+    try {
+      setIsExporting(true);
+      const data = await exportCurrentNotes();
+      const jsonString = JSON.stringify(data, null, 2);
+
+      // Write to a file in app documents and share
+      const ts = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const fileName = `notes_backup_${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.json`;
+      // Use cache directory for share compatibility (Android FileProvider)
+      const file = Paths.cache.createFile(fileName, 'application/json');
+      await file.write(jsonString);
+      const uri = file.uri;
+
+      if (await Sharing.isAvailableAsync()) {
+        try {
+          await Sharing.shareAsync(uri, { mimeType: 'application/json', dialogTitle: 'Share Notes Backup' });
+        } catch (e) {
+          // Fallback: share as raw text if file share fails
+          await Share.share({ title: 'Notes Backup', message: jsonString });
+        }
+      } else {
+        await Share.share({ title: 'Notes Backup', message: jsonString });
+      }
+
+      showSuccess('Backup created');
+    } catch (error) {
+      console.error('Backup error:', error);
+      showError('Failed to create backup');
     } finally {
       setIsExporting(false);
     }
@@ -284,6 +322,13 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme].textSecondary }]}>Data Management</Text>
           <View style={[styles.card, { backgroundColor: Colors[colorScheme].surface }]}>
+            <SettingsItem
+              icon={<Download size={24} color={Colors[colorScheme].primary} />}
+              label="Backup Notes"
+              description="Create a backup file of your current notes"
+              onPress={handleBackupNotes}
+              colorScheme={colorScheme}
+            />
             <SettingsItem
               icon={<Download size={24} color={Colors[colorScheme].primary} />}
               label="Export Data"

@@ -201,7 +201,7 @@ for (i in 0 until notesArray.length()) {
 }
 
 // 4. Sort by most recent
-notesList.sortedByDescending { it.updatedAt }.take(10)
+notesList.sortedByDescending { it.updatedAt }.take(9)
 
 // 5. Display in RecyclerView
 ```

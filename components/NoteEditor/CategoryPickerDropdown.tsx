@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
 import { FolderPlus } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { Category } from '@/types';
 
 interface CategoryPickerDropdownProps {
@@ -20,26 +21,28 @@ export function CategoryPickerDropdown({
   onSelectCategory,
   onAddCategory,
 }: CategoryPickerDropdownProps) {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   if (!visible) return null;
 
   return (
     <Pressable style={styles.overlay} onPress={onClose}>
       <View style={styles.positioner}>
         <Pressable onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modal}>
+          <View style={[styles.modal, { backgroundColor: C.surface }]}>
             {/* Add New Category Option */}
             <TouchableOpacity style={styles.addOption} onPress={onAddCategory}>
-              <FolderPlus size={18} color={Colors.light.primary} />
-              <Text style={styles.addText}>Add</Text>
+              <FolderPlus size={18} color={C.primary} />
+              <Text style={[styles.addText, { color: C.primary }]}>Add</Text>
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: C.borderLight }]} />
 
             <TouchableOpacity
               style={[styles.option, !selectedCategory && styles.optionActive]}
               onPress={() => onSelectCategory(null)}
             >
-              <Text style={styles.optionText}>All</Text>
+              <Text style={[styles.optionText, { color: C.text }]}>All</Text>
             </TouchableOpacity>
 
             {categories.map((category) => (
@@ -48,7 +51,7 @@ export function CategoryPickerDropdown({
                 style={[styles.option, selectedCategory === category.id && styles.optionActive]}
                 onPress={() => onSelectCategory(category.id)}
               >
-                <Text style={styles.optionText}>{category.name}</Text>
+                <Text style={[styles.optionText, { color: C.text }]}>{category.name}</Text>
               </TouchableOpacity>
             ))}
           </View>

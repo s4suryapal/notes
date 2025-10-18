@@ -3,18 +3,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function ImportScreen() {
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Colors.light.text} />
+          <ArrowLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Import</Text>
+        <Text style={[styles.headerTitle, { color: C.text }]}>Import</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.text}>Import from backup coming soon.</Text>
+        <Text style={[styles.text, { color: C.textSecondary }]}>Import from backup coming soon.</Text>
       </View>
     </SafeAreaView>
   );

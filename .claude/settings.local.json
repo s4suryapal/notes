@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Library/WebServer/Documents/allmail/**)",
+      "Read(//Library/WebServer/Documents/allmail/android/app/src/main/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

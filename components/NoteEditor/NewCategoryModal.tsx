@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import { X } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 
 interface NewCategoryModalProps {
   visible: boolean;
@@ -11,6 +12,8 @@ interface NewCategoryModalProps {
 
 export function NewCategoryModal({ visible, onClose, onCreate }: NewCategoryModalProps) {
   const [categoryName, setCategoryName] = useState('');
+  const { colorScheme } = useTheme();
+  const C = Colors[colorScheme];
 
   const handleCreate = async () => {
     if (categoryName.trim()) {
@@ -26,19 +29,19 @@ export function NewCategoryModal({ visible, onClose, onCreate }: NewCategoryModa
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
+      <Pressable style={[styles.overlay, { backgroundColor: C.overlay }]} onPress={handleClose}>
+        <Pressable style={[styles.modal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
           <View style={styles.header}>
-            <Text style={styles.title}>New Category</Text>
+            <Text style={[styles.title, { color: C.text }]}>New Category</Text>
             <TouchableOpacity onPress={handleClose}>
-              <X size={24} color={Colors.light.text} />
+              <X size={24} color={C.text} />
             </TouchableOpacity>
           </View>
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: C.border, color: C.text }]}
             placeholder="Category name"
-            placeholderTextColor={Colors.light.textTertiary}
+            placeholderTextColor={C.textTertiary}
             value={categoryName}
             onChangeText={setCategoryName}
             autoFocus
@@ -48,10 +51,10 @@ export function NewCategoryModal({ visible, onClose, onCreate }: NewCategoryModa
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: C.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.createButton} onPress={handleCreate}>
-              <Text style={styles.createText}>Create</Text>
+            <TouchableOpacity style={[styles.createButton, { backgroundColor: C.primary }]} onPress={handleCreate}>
+              <Text style={[styles.createText, { color: C.surface }]}>Create</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
