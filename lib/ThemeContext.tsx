@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { MMKVStorage } from './mmkvStorage';
 import { ThemeMode, ColorScheme, ThemeColors, getThemeColors } from '@/constants/theme';
@@ -78,15 +78,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     setThemeMode(newScheme);
   }, [colorScheme, setThemeMode]);
 
-  const colors = getThemeColors(colorScheme);
+  const colors = useMemo(() => getThemeColors(colorScheme), [colorScheme]);
 
-  const value: ThemeContextValue = {
-    mode,
-    colorScheme,
-    colors,
-    setThemeMode,
-    toggleTheme,
-  };
+  const value: ThemeContextValue = useMemo(
+    () => ({
+      mode,
+      colorScheme,
+      colors,
+      setThemeMode,
+      toggleTheme,
+    }),
+    [mode, colorScheme, colors, setThemeMode, toggleTheme]
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

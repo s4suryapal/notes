@@ -8,7 +8,8 @@ import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { NoteCard, NoteCardSkeleton, FormattedText, FeatureTour } from '@/components';
+import { useNavigationGuard } from '@/hooks/useNavigationGuard';
+import { NoteCard, NoteCardSkeleton, FormattedText, FeatureTour, ErrorBoundary } from '@/components';
 import { CategoryChip } from '@/components/CategoryChip';
 import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
@@ -21,6 +22,7 @@ import { useToast } from '@/lib/ToastContext';
 import { useFeatureTour } from '@/lib/FeatureTourContext';
 import { getHomeTourSteps } from '@/components/tours/homeTourSteps';
 import { ViewMode, Note, SortBy } from '@/types';
+import analytics from '@/services/analytics';
 
 export default function HomeScreen() {
   const layout = useWindowDimensions();
@@ -37,10 +39,49 @@ export default function HomeScreen() {
   const { colorScheme } = useTheme();
   const C = Colors[colorScheme];
   const { shouldShowHomeTour, setHomeTourCompleted } = useFeatureTour();
+  const { guardNavigation } = useNavigationGuard({ delay: 500 });
+
+  // Responsive grid calculations (AllMail pattern)
+  const { width: windowWidth } = layout;
+  const gridConfig = useMemo(() => {
+    const horizontalPadding = Spacing.sm * 2; // Left + right padding
+    const gap = Spacing.xs * 2; // Gap between items
+
+    // Determine number of columns based on screen width
+    let numColumns = 2; // Default for phones
+    if (windowWidth >= 1024) {
+      numColumns = 4; // Desktop/large tablets
+    } else if (windowWidth >= 768) {
+      numColumns = 3; // Tablets
+    } else if (windowWidth >= 600) {
+      numColumns = 2; // Large phones landscape
+    }
+
+    // Calculate item width with proper gap handling
+    const gridWidth = Math.max(windowWidth - horizontalPadding, 0);
+    const itemWidth = Math.floor((gridWidth - (numColumns - 1) * gap) / numColumns);
+
+    return {
+      numColumns,
+      itemWidth,
+      gap,
+      horizontalPadding,
+    };
+  }, [windowWidth]);
 
   const [index, setIndex] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('updated');
+
+  // Track view mode changes
+  useEffect(() => {
+    analytics.logViewModeChanged(viewMode).catch(console.error);
+  }, [viewMode]);
+
+  // Track sort mode changes
+  useEffect(() => {
+    analytics.logSortModeChanged(sortBy).catch(console.error);
+  }, [sortBy]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
@@ -104,11 +145,13 @@ export default function HomeScreen() {
   };
 
   const handleCreateNote = () => {
-    // Derive current tab's category id; skip if 'all'
-    const currentCat = allCategories[index];
-    const catId = currentCat?.id && currentCat.id !== 'all' ? currentCat.id : null;
-    const href = catId ? `/note/new?category=${encodeURIComponent(catId)}` : '/note/new';
-    router.push(href);
+    guardNavigation(() => {
+      // Derive current tab's category id; skip if 'all'
+      const currentCat = allCategories[index];
+      const catId = currentCat?.id && currentCat.id !== 'all' ? currentCat.id : null;
+      const href = catId ? `/note/new?category=${encodeURIComponent(catId)}` : '/note/new';
+      router.push(href);
+    });
   };
 
   const handleNoteMenu = (noteId: string) => {
@@ -231,7 +274,9 @@ export default function HomeScreen() {
         setSelectionMode(false);
       }
     } else {
-      router.push(`/note/${noteId}`);
+      guardNavigation(() => {
+        router.push(`/note/${noteId}`);
+      });
     }
   };
 
@@ -253,6 +298,9 @@ export default function HomeScreen() {
 
   const handleBulkDelete = async () => {
     if (selectedNoteIds.size === 0) return;
+
+    // Track bulk operation attempt
+    analytics.logBulkOperation('delete', selectedNoteIds.size).catch(console.error);
 
     // If any selected note is locked, require authentication first
     const anyLocked = notes.some(n => selectedNoteIds.has(n.id) && n.is_locked);
@@ -302,6 +350,9 @@ export default function HomeScreen() {
     if (selectedNoteIds.size === 0) return;
 
     const count = selectedNoteIds.size;
+
+    // Track bulk operation
+    analytics.logBulkOperation('archive', count).catch(console.error);
     try {
       // Archive all notes
       await Promise.all(
@@ -323,6 +374,9 @@ export default function HomeScreen() {
     if (selectedNoteIds.size === 0) return;
 
     const count = selectedNoteIds.size;
+
+    // Track bulk operation
+    analytics.logBulkOperation('move', count).catch(console.error);
     try {
       // Move all notes to category
       Promise.all(
@@ -373,12 +427,14 @@ export default function HomeScreen() {
   };
 
   const handleTourSkip = () => {
+    analytics.logFeatureTourSkipped('home_tour', tourStepIndex).catch(console.error);
     setShowHomeTour(false);
     setTourStepIndex(0);
     setHomeTourCompleted();
   };
 
   const handleTourComplete = () => {
+    analytics.logFeatureTourCompleted('home_tour').catch(console.error);
     setShowHomeTour(false);
     setTourStepIndex(0);
     setHomeTourCompleted();
@@ -433,12 +489,14 @@ export default function HomeScreen() {
 
     if (filteredNotes.length === 0) {
       return (
-        <EmptyState
-          title="No notes yet"
-          message="Tap the + button to create your first note"
-          actionText="Create Note"
-          onActionPress={handleCreateNote}
-        />
+        <ErrorBoundary componentName="EmptyState">
+          <EmptyState
+            title="No notes yet"
+            message="Tap the + button to create your first note"
+            actionText="Create Note"
+            onActionPress={handleCreateNote}
+          />
+        </ErrorBoundary>
       );
     }
 
@@ -475,10 +533,10 @@ export default function HomeScreen() {
     // Grid view
     return (
       <FlatList
-        key="grid"
+        key={`grid-${gridConfig.numColumns}`}
         data={filteredNotes}
         keyExtractor={(item) => item.id}
-        numColumns={2}
+        numColumns={gridConfig.numColumns}
         renderItem={({ item }) => {
           const background = getBackgroundById(item.color);
           const isGradient = background?.type === 'gradient' && background.gradient && background.gradient.length >= 2;
@@ -615,7 +673,7 @@ export default function HomeScreen() {
           const isSelected = selectedNoteIds.has(item.id);
 
           return (
-            <View style={styles.gridItem}>
+            <View style={[styles.gridItem, { width: gridConfig.itemWidth, padding: gridConfig.gap / 2 }]}>
               {isGradient ? (
                 <TouchableOpacity
                   onPress={() => handleNotePress(item.id)}
@@ -667,7 +725,11 @@ export default function HomeScreen() {
   };
 
   const renderScene = ({ route }: { route: { key: string; title: string } }) => {
-    return renderNotesList(route.key);
+    return (
+      <ErrorBoundary componentName={`NotesList-${route.key}`}>
+        {renderNotesList(route.key)}
+      </ErrorBoundary>
+    );
   };
 
   if (loading) {
@@ -1162,9 +1224,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   gridItem: {
-    flex: 1,
-    maxWidth: '50%',
-    padding: Spacing.xs,
+    // Width and padding set dynamically via gridConfig
   },
   gridCard: {
     backgroundColor: Colors.light.surface,

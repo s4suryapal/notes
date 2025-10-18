@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface FeatureTourContextType {
@@ -100,17 +100,30 @@ export function FeatureTourProvider({ children }: { children: React.ReactNode })
     return hasCompletedOnboarding && hasCompletedHomeTour && !hasCompletedEditorTour;
   }, [hasCompletedOnboarding, hasCompletedHomeTour, hasCompletedEditorTour]);
 
-  const value: FeatureTourContextType = {
-    hasCompletedOnboarding,
-    hasCompletedHomeTour,
-    hasCompletedEditorTour,
-    setOnboardingCompleted,
-    setHomeTourCompleted,
-    setEditorTourCompleted,
-    resetAllTours,
-    shouldShowHomeTour,
-    shouldShowEditorTour,
-  };
+  const value: FeatureTourContextType = useMemo(
+    () => ({
+      hasCompletedOnboarding,
+      hasCompletedHomeTour,
+      hasCompletedEditorTour,
+      setOnboardingCompleted,
+      setHomeTourCompleted,
+      setEditorTourCompleted,
+      resetAllTours,
+      shouldShowHomeTour,
+      shouldShowEditorTour,
+    }),
+    [
+      hasCompletedOnboarding,
+      hasCompletedHomeTour,
+      hasCompletedEditorTour,
+      setOnboardingCompleted,
+      setHomeTourCompleted,
+      setEditorTourCompleted,
+      resetAllTours,
+      shouldShowHomeTour,
+      shouldShowEditorTour,
+    ]
+  );
 
   // Don't render children until we've loaded the tour status
   if (isLoading) {

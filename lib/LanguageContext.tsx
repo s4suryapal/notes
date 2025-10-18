@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { storage } from './mmkvStorage';
 
 type Language = 'en' | 'hi' | 'de' | 'es' | 'fr' | 'ru' | 'id' | 'ja' | 'zh' | 'ko' | 'vi' | 'pt' | 'ar' | 'tr' | 'pl' | 'it' | 'fil' | 'uk' | 'th' | 'af' | 'bn';
@@ -95,28 +95,31 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const setLanguage = async (language: Language) => {
+  const setLanguage = useCallback(async (language: Language) => {
     setCurrentLanguage(language);
     storage.set(LANGUAGE_KEY, language);
-  };
+  }, []);
 
-  const markFirstLaunchComplete = async () => {
+  const markFirstLaunchComplete = useCallback(async () => {
     storage.set(FIRST_LAUNCH_KEY, true);
     setIsFirstLaunch(false);
-  };
+  }, []);
 
-  const t = (key: string): string => {
+  const t = useCallback((key: string): string => {
     return translations[currentLanguage]?.[key] || translations['en'][key] || key;
-  };
+  }, [currentLanguage]);
 
-  const value: LanguageContextType = {
-    currentLanguage,
-    setLanguage,
-    isFirstLaunch,
-    isLoading,
-    markFirstLaunchComplete,
-    t,
-  };
+  const value: LanguageContextType = useMemo(
+    () => ({
+      currentLanguage,
+      setLanguage,
+      isFirstLaunch,
+      isLoading,
+      markFirstLaunchComplete,
+      t,
+    }),
+    [currentLanguage, setLanguage, isFirstLaunch, isLoading, markFirstLaunchComplete, t]
+  );
 
   return (
     <LanguageContext.Provider value={value}>

@@ -250,6 +250,74 @@ export class AnalyticsService {
       theme_mode: theme,
     });
   }
+
+  // Engagement events
+  async logFeatureTourStarted(tourName: string): Promise<void> {
+    await this.logEvent('feature_tour_started', {
+      tour_name: tourName,
+    });
+  }
+
+  async logFeatureTourCompleted(tourName: string): Promise<void> {
+    await this.logEvent('feature_tour_completed', {
+      tour_name: tourName,
+    });
+  }
+
+  async logFeatureTourSkipped(tourName: string, stepIndex: number): Promise<void> {
+    await this.logEvent('feature_tour_skipped', {
+      tour_name: tourName,
+      step_index: stepIndex,
+    });
+  }
+
+  // View mode events
+  async logViewModeChanged(viewMode: 'grid' | 'list'): Promise<void> {
+    await this.logEvent('view_mode_changed', {
+      view_mode: viewMode,
+    });
+  }
+
+  async logSortModeChanged(sortBy: string): Promise<void> {
+    await this.logEvent('sort_mode_changed', {
+      sort_by: sortBy,
+    });
+  }
+
+  // Bulk operations
+  async logBulkOperation(operation: 'delete' | 'archive' | 'move', count: number): Promise<void> {
+    await this.logEvent('bulk_operation', {
+      operation_type: operation,
+      items_count: count,
+    });
+  }
+
+  // User retention milestones
+  async logMilestone(milestone: string, value?: number): Promise<void> {
+    await this.logEvent('milestone_reached', {
+      milestone_type: milestone,
+      milestone_value: value,
+    });
+  }
+
+  // Session tracking
+  async logSessionStart(): Promise<void> {
+    await this.logEvent('session_start');
+  }
+
+  async logSessionEnd(duration: number): Promise<void> {
+    await this.logEvent('session_end', {
+      session_duration: duration,
+    });
+  }
+
+  // Error tracking (non-crash errors)
+  async logUserError(errorType: string, context?: string): Promise<void> {
+    await this.logEvent('user_error', {
+      error_type: errorType,
+      error_context: context,
+    });
+  }
 }
 
 export default AnalyticsService.getInstance();

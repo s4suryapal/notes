@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { Note, Category, CreateNoteInput } from '@/types';
 import * as Storage from './storage';
 import { encryptText, decryptText, isEncryptionAvailable } from './encryption';
 import { authenticateWithBiometrics } from './biometric';
+import inAppReviewService from '@/services/inAppReview';
+import analytics from '@/services/analytics';
 
 interface NotesContextType {
   notes: Note[];
@@ -82,12 +84,66 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const createNote = useCallback(async (input: CreateNoteInput) => {
     const note = await Storage.createNote(input);
     await refreshNotes();
+
+    // Track note creation for in-app review
+    try {
+      await inAppReviewService.trackEvent('note_created');
+
+      // Get total note count for analytics
+      const allNotes = await Storage.getAllNotes();
+      const activeNotes = allNotes.filter(n => !n.is_deleted);
+
+      // Log to analytics
+      await analytics.logEvent('note_created', {
+        category: input.category_id || 'none',
+        has_checklist: (input.checklist_items?.length || 0) > 0,
+        has_images: (input.images?.length || 0) > 0,
+        has_audio: (input.audio_recordings?.length || 0) > 0,
+        is_locked: input.is_locked || false,
+        total_notes: activeNotes.length,
+      });
+
+      // Smart review prompt after 10 notes created
+      if (activeNotes.length === 10) {
+        console.log('[NOTES] 10 notes milestone reached, checking review eligibility...');
+        const shouldPrompt = await inAppReviewService.shouldPromptForReview();
+        if (shouldPrompt) {
+          // Delay slightly to avoid interrupting user flow
+          setTimeout(() => {
+            inAppReviewService.requestReview();
+          }, 2000);
+        }
+      }
+    } catch (error) {
+      console.log('[NOTES] Error tracking note creation:', error);
+      // Don't block note creation if tracking fails
+    }
+
     return note;
   }, [refreshNotes]);
 
   const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
     const updatedNote = await Storage.updateNote(id, updates);
     await refreshNotes();
+
+    // Track significant note updates
+    try {
+      await inAppReviewService.trackEvent('note_updated');
+
+      // Track specific update types
+      if (updates.is_favorite !== undefined) {
+        await analytics.logEvent('note_favorited', { favorited: updates.is_favorite });
+      }
+      if (updates.is_locked !== undefined) {
+        await analytics.logEvent('note_locked', { locked: updates.is_locked });
+      }
+      if (updates.category_id !== undefined) {
+        await analytics.logEvent('note_moved_to_category');
+      }
+    } catch (error) {
+      console.log('[NOTES] Error tracking note update:', error);
+    }
+
     return updatedNote;
   }, [refreshNotes]);
 
@@ -249,29 +305,54 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     return await Storage.getCategoryNoteCounts();
   }, []);
 
-  const value: NotesContextType = {
-    notes,
-    categories,
-    loading,
-    error,
-    retry,
-    refreshNotes,
-    refreshCategories,
-    createNote,
-    updateNote,
-    deleteNote,
-    permanentlyDeleteNote,
-    restoreNote,
-    toggleFavorite,
-    toggleArchive,
-    toggleLock,
-    unlockNote,
-    createCategory,
-    updateCategory,
-    deleteCategory,
-    reorderCategories,
-    getCategoryNoteCounts,
-  };
+  const value: NotesContextType = useMemo(
+    () => ({
+      notes,
+      categories,
+      loading,
+      error,
+      retry,
+      refreshNotes,
+      refreshCategories,
+      createNote,
+      updateNote,
+      deleteNote,
+      permanentlyDeleteNote,
+      restoreNote,
+      toggleFavorite,
+      toggleArchive,
+      toggleLock,
+      unlockNote,
+      createCategory,
+      updateCategory,
+      deleteCategory,
+      reorderCategories,
+      getCategoryNoteCounts,
+    }),
+    [
+      notes,
+      categories,
+      loading,
+      error,
+      retry,
+      refreshNotes,
+      refreshCategories,
+      createNote,
+      updateNote,
+      deleteNote,
+      permanentlyDeleteNote,
+      restoreNote,
+      toggleFavorite,
+      toggleArchive,
+      toggleLock,
+      unlockNote,
+      createCategory,
+      updateCategory,
+      deleteCategory,
+      reorderCategories,
+      getCategoryNoteCounts,
+    ]
+  );
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
 }
