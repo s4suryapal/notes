@@ -10,6 +10,7 @@ import { ThemeProvider } from '@/lib/ThemeContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { NotesProvider } from '@/lib/NotesContext';
 import { ToastProvider } from '@/lib/ToastContext';
+import { FeatureTourProvider } from '@/lib/FeatureTourContext';
 import { ErrorBoundary } from '@/components';
 import { setupPersistentNotification, handleNotificationResponse } from '@/lib/persistentNotification';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -377,10 +378,12 @@ export default function RootLayout() {
         <LanguageProvider>
           <ThemeProvider>
             <ToastProvider>
-              <NotesProvider>
-                <AppNavigation />
-                <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
-              </NotesProvider>
+              <FeatureTourProvider>
+                <NotesProvider>
+                  <AppNavigation />
+                  <StatusBar style="auto" translucent={true} backgroundColor="transparent" />
+                </NotesProvider>
+              </FeatureTourProvider>
             </ToastProvider>
           </ThemeProvider>
         </LanguageProvider>

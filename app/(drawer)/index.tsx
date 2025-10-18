@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, Pressable, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform, InteractionManager, BackHandler } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
@@ -8,7 +8,7 @@ import { Menu, Search as SearchIcon, Grid2x2 as Grid, List, ArrowUpDown, Check, 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { NoteCard, NoteCardSkeleton, FormattedText } from '@/components';
+import { NoteCard, NoteCardSkeleton, FormattedText, FeatureTour } from '@/components';
 import { CategoryChip } from '@/components/CategoryChip';
 import { FAB } from '@/components/FAB';
 import { EmptyState } from '@/components/EmptyState';
@@ -18,6 +18,8 @@ import BannerAdComponent from '@/components/BannerAdComponent';
 import { useNotes } from '@/lib/NotesContext';
 import { authenticateWithBiometrics } from '@/lib/biometric';
 import { useToast } from '@/lib/ToastContext';
+import { useFeatureTour } from '@/lib/FeatureTourContext';
+import { getHomeTourSteps } from '@/components/tours/homeTourSteps';
 import { ViewMode, Note, SortBy } from '@/types';
 
 export default function HomeScreen() {
@@ -34,6 +36,7 @@ export default function HomeScreen() {
   const { showSuccess, showInfo } = useToast();
   const { colorScheme } = useTheme();
   const C = Colors[colorScheme];
+  const { shouldShowHomeTour, setHomeTourCompleted } = useFeatureTour();
 
   const [index, setIndex] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -47,6 +50,12 @@ export default function HomeScreen() {
   const [newCategoryColor, setNewCategoryColor] = useState(Colors.light.primary);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
+
+  // Feature Tour state
+  const [showHomeTour, setShowHomeTour] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
+  const fabBottom = insets.bottom + 50 + Spacing.base;
+  const homeTourSteps = useMemo(() => getHomeTourSteps(fabBottom), [fabBottom]);
 
   // Add "All" category at the beginning (no "+" tab anymore)
   const allCategories = useMemo(() => [
@@ -348,6 +357,31 @@ export default function HomeScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to create folder');
     }
+  };
+
+  // Show home tour after data loads
+  useEffect(() => {
+    if (!loading && shouldShowHomeTour()) {
+      // Delay slightly to let UI settle
+      const timer = setTimeout(() => setShowHomeTour(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, shouldShowHomeTour]);
+
+  const handleTourNext = () => {
+    setTourStepIndex((prev) => prev + 1);
+  };
+
+  const handleTourSkip = () => {
+    setShowHomeTour(false);
+    setTourStepIndex(0);
+    setHomeTourCompleted();
+  };
+
+  const handleTourComplete = () => {
+    setShowHomeTour(false);
+    setTourStepIndex(0);
+    setHomeTourCompleted();
   };
 
   // Handle Android back: close sheets/modals, exit selection, or double-press to exit app
@@ -987,6 +1021,16 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Feature Tour */}
+      <FeatureTour
+        visible={showHomeTour}
+        steps={homeTourSteps}
+        currentStepIndex={tourStepIndex}
+        onNext={handleTourNext}
+        onSkip={handleTourSkip}
+        onComplete={handleTourComplete}
+      />
     </SafeAreaView>
   );
 }

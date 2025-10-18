@@ -23,3 +23,5 @@ export type { DocumentScanResult } from './DocumentScanner';
 export { default as TextExtractor } from './TextExtractor';
 export type { OCRResult } from './TextExtractor';
 export { default as Onboarding } from './Onboarding';
+export { default as FeatureTour } from './FeatureTour';
+export type { TourStep } from './FeatureTour';

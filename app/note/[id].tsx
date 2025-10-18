@@ -22,7 +22,8 @@ import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
 import { useToast } from '@/lib/ToastContext';
-import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, DocumentScanner, TextExtractor } from '@/components';
+import { useFeatureTour } from '@/lib/FeatureTourContext';
+import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, DocumentScanner, TextExtractor, FeatureTour } from '@/components';
 import type { DocumentScanResult, OCRResult } from '@/components';
 import { Note } from '@/types';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -41,6 +42,7 @@ import {
   useChecklistManager,
 } from '@/hooks/useNoteEditor';
 import { authenticateWithBiometrics } from '@/lib/biometric';
+import { getEditorTourSteps } from '@/components/tours/editorTourSteps';
 
 export default function NoteEditorScreen() {
   const { id, mode, category } = useLocalSearchParams();
@@ -60,6 +62,7 @@ export default function NoteEditorScreen() {
   const { showInfo } = useToast();
   const { colorScheme } = useTheme();
   const C = Colors[colorScheme];
+  const { shouldShowEditorTour, setEditorTourCompleted } = useFeatureTour();
 
   // State
   const [title, setTitle] = useState('');
@@ -74,6 +77,11 @@ export default function NoteEditorScreen() {
   const [loading, setLoading] = useState(!isNewNote);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [actionNoteId, setActionNoteId] = useState<string | null>(null);
+
+  // Feature Tour state
+  const [showEditorTour, setShowEditorTour] = useState(false);
+  const [editorTourStepIndex, setEditorTourStepIndex] = useState(0);
+  const editorTourSteps = useMemo(() => getEditorTourSteps(), []);
 
   // Refs
   const richTextRef = useRef<RichEditor>(null);
@@ -292,6 +300,31 @@ export default function NoteEditorScreen() {
   useEffect(() => {
     return () => cleanup();
   }, [cleanup]);
+
+  // Show editor tour for new notes if needed
+  useEffect(() => {
+    if (!loading && editorReady && isNewNote && shouldShowEditorTour()) {
+      // Delay to let toolbar render
+      const timer = setTimeout(() => setShowEditorTour(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, editorReady, isNewNote, shouldShowEditorTour]);
+
+  const handleEditorTourNext = () => {
+    setEditorTourStepIndex((prev) => prev + 1);
+  };
+
+  const handleEditorTourSkip = () => {
+    setShowEditorTour(false);
+    setEditorTourStepIndex(0);
+    setEditorTourCompleted();
+  };
+
+  const handleEditorTourComplete = () => {
+    setShowEditorTour(false);
+    setEditorTourStepIndex(0);
+    setEditorTourCompleted();
+  };
 
   // Handlers
   const handleTitleChange = (text: string) => {
@@ -735,6 +768,16 @@ export default function NoteEditorScreen() {
         onDelete={imageManager.handleDeleteImageFromPreview}
         onCrop={imageManager.handleCropImage}
         onSwipe={imageManager.handleImageSwipe}
+      />
+
+      {/* Feature Tour */}
+      <FeatureTour
+        visible={showEditorTour}
+        steps={editorTourSteps}
+        currentStepIndex={editorTourStepIndex}
+        onNext={handleEditorTourNext}
+        onSkip={handleEditorTourSkip}
+        onComplete={handleEditorTourComplete}
       />
     </SafeAreaView>
   );
