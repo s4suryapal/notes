@@ -9,17 +9,29 @@ NotesAI is a React Native mobile notes application built with Expo, featuring a 
 ## Development Commands
 
 ```bash
-# Start development server
-npm run dev
+# Development
+npm run dev                # Start dev server with LAN access
+npm run dev:tunnel         # Start dev server with tunnel (for remote testing)
 
-# Type checking
-npm run typecheck
+# Build Commands
+npm run build:apk          # Build production APK (requires keystore)
+npm run build:aab          # Build production AAB for Play Store (requires keystore)
+npm run build:dev-apk      # Build debug APK (no keystore required)
+npm run build:web          # Build for web
 
-# Linting
-npm run lint
+# Clean Commands
+npm run clean              # Clean build cache (preserves keystores)
+npm run clean:gradle       # Clean via Gradle (preserves keystores)
+npm run clean:all          # Deep clean (both methods)
 
-# Build for web
-npm run build:web
+# Analysis & Quality
+npm run analyze:bundle     # Visualize bundle size
+npm run analyze:apk        # Analyze APK size with detailed report
+npm run analyze:deps       # Check for unused dependencies
+npm run typecheck          # TypeScript type checking
+npm run lint               # Lint code
+npm run format             # Format code with Prettier
+npm run verify:keystore    # Verify production keystore exists
 ```
 
 ## Architecture
