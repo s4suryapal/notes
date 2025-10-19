@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { Note, ChecklistItem as ChecklistItemType, CreateNoteInput } from '@/types';
+import { generateNoteTitle } from '@/lib/firebaseAI';
 
 interface UseAutoSaveProps {
   createNote: (input: CreateNoteInput) => Promise<Note>;
@@ -62,12 +63,28 @@ export function useAutoSave({ createNote, updateNote }: UseAutoSaveProps) {
       return;
     }
 
+    // Generate title if empty but has content
+    let finalTitle = title;
+    if (!hasTitleContent && (hasBodyContent || hasImages || hasAudio || hasChecklist)) {
+      try {
+        console.log('Generating auto-title...');
+        finalTitle = await generateNoteTitle(body || 'New Note', 50);
+        console.log('Generated title:', finalTitle);
+      } catch (error) {
+        console.error('Error generating title:', error);
+        // Fallback to simple extraction
+        const plainText = body.replace(/<[^>]*>/g, ' ').trim();
+        const firstLine = plainText.split('\n')[0] || 'Untitled Note';
+        finalTitle = firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
+      }
+    }
+
     try {
       if (currentNoteId.current) {
         // Update existing note
         console.log('Updating note:', currentNoteId.current);
         await updateNote(currentNoteId.current, {
-          title,
+          title: finalTitle,
           body,
           category_id: categoryId,
           color,
@@ -80,7 +97,7 @@ export function useAutoSave({ createNote, updateNote }: UseAutoSaveProps) {
         // Create new note
         console.log('Creating new note');
         const newNote = await createNote({
-          title,
+          title: finalTitle,
           body,
           category_id: categoryId,
           color,
