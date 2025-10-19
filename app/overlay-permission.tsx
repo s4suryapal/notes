@@ -22,7 +22,7 @@ const { OverlaySettingsModule } = NativeModules;
 
 export default function OverlayPermissionScreen() {
   const { colors } = useTheme();
-  const { t } = useLanguage();
+  const { t, markFirstLaunchComplete } = useLanguage();
   const [isRequesting, setIsRequesting] = useState(false);
   const [hasOpenedSettings, setHasOpenedSettings] = useState(false);
   const insets = useSafeAreaInsets();
@@ -55,7 +55,7 @@ export default function OverlayPermissionScreen() {
     return () => {
       subscription?.remove();
     };
-  }, [hasOpenedSettings]);
+  }, [hasOpenedSettings, markFirstLaunchComplete]);
 
   // Hardware back button handler - go to home
   useFocusEffect(
@@ -88,6 +88,7 @@ export default function OverlayPermissionScreen() {
           // Already granted - go to home
           setIsRequesting(false);
           if (__DEV__) console.log('🎉 [OVERLAY_PERMISSION] Overlay already granted - going to home');
+          await markFirstLaunchComplete();
           router.replace('/');
           return;
         }
@@ -124,19 +125,16 @@ export default function OverlayPermissionScreen() {
         // iOS doesn't need overlay permission - go to home
         if (__DEV__) console.log('iOS - no overlay permission needed');
         setIsRequesting(false);
+        await markFirstLaunchComplete();
         router.replace('/');
       }
     } catch (error) {
       if (__DEV__) console.log('Overlay permission error:', error);
       // Continue to main app even if error
       setIsRequesting(false);
+      await markFirstLaunchComplete();
       router.replace('/');
     }
-  };
-
-  const handleSkip = () => {
-    if (__DEV__) console.log('📱 [OVERLAY_PERMISSION] User skipped overlay permission');
-    router.replace('/');
   };
 
   return (
@@ -210,7 +208,7 @@ export default function OverlayPermissionScreen() {
               {/* Settings description */}
               <View style={styles.settingsDescription}>
                 <Text style={styles.descriptionText}>
-                  This permission allows an app to show things on top of other apps you're using.
+                  This permission allows an app to show things on top of other apps you&apos;re using.
                 </Text>
               </View>
 
@@ -288,14 +286,13 @@ export default function OverlayPermissionScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Section */}
-      <View style={[
-        styles.bottomSection,
-        {
-          backgroundColor: colors.background,
-          bottom: Math.max(insets.bottom, 0),
-        }
-      ]}>
+      {/* Fixed Footer: Contains Button and Banner Ad */}
+      <View
+        style={[
+          styles.fixedFooter,
+          { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 8) }
+        ]}
+      >
         {/* Enable Button - Prominent */}
         <Pressable
           style={[styles.enableButton, { backgroundColor: colors.primary }]}
@@ -307,30 +304,18 @@ export default function OverlayPermissionScreen() {
           </Text>
         </Pressable>
 
-        {/* Skip Button */}
-        <Pressable
-          style={styles.skipButton}
-          onPress={handleSkip}
+        {/* Banner Ad - Full width */}
+        <View
+          style={[
+            styles.footerAdContainer,
+            { borderTopColor: colors.border }
+          ]}
         >
-          <Text style={[styles.skipButtonText, { color: colors.textSecondary }]}>
-            {t('skip') || 'Skip for now'}
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Banner Ad - Fixed at bottom */}
-      <View style={[
-        styles.bannerAdContainer,
-        {
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          bottom: insets.bottom,
-        }
-      ]}>
-        <BannerAdComponent
-          adType="adaptiveBanner"
-          location="overlay_permission"
-        />
+          <BannerAdComponent
+            adType="adaptiveBanner"
+            location="permissions"
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -346,7 +331,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 200, // Space for bottom section + banner ad
+    paddingBottom: 160, // Space for footer: button (50) + ad (60) + padding (50)
     alignItems: 'center',
   },
   title: {
@@ -563,48 +548,31 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600',
   },
-  bottomSection: {
+  fixedFooter: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    paddingBottom: 60, // Space for banner ad
-    zIndex: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   enableButton: {
     paddingVertical: 14,
     borderRadius: 22,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
     marginBottom: 12,
   },
   enableButtonText: {
     color: 'white',
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  skipButton: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    fontSize: 14,
-  },
-  bannerAdContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+  footerAdContainer: {
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderTopWidth: 0.5,
-    paddingHorizontal: 4,
     paddingVertical: 2,
-    zIndex: 5,
+    marginHorizontal: -16, // Extend to full width (negate parent padding)
   },
 });

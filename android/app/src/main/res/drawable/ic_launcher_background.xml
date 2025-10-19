@@ -1,6 +1,8 @@
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-  <item android:drawable="@color/splashscreen_background"/>
-  <item>
-    <bitmap android:gravity="center" android:src="@drawable/splashscreen_logo"/>
-  </item>
-</layer-list>
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon background layer
+  Solid color background matching NotesAI theme: #FFF8E1 (warm yellow)
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/iconBackground"/>
+</shape>
