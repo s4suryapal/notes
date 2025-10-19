@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon (round variant) following Google design guidelines:
+  - 108x108 dp layers
+  - Logo 48-66 dp in safe zone
+  - Monochrome layer for Android 13+ theming
+  - Background color: #FFF8E1 (warm yellow matching NotesAI theme)
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/iconBackground"/>
     <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
+    <!-- Monochrome layer for Android 13+ themed icons -->
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
 </adaptive-icon>
