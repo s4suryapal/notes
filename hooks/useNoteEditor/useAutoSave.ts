@@ -91,7 +91,13 @@ export function useAutoSave({ createNote, updateNote }: UseAutoSaveProps) {
           finalTitle = firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
         }
       } catch (error) {
-        console.error('Error generating title:', error);
+        // Check if it's a Firebase service disabled error
+        const errorMessage = error?.toString() || '';
+        if (errorMessage.includes('ServiceDisabledException') || errorMessage.includes('firebasevertexai.googleapis.com')) {
+          console.log('Firebase AI not enabled - using fallback title generation');
+        } else {
+          console.error('Error generating title:', error);
+        }
         // Fallback to simple extraction
         const plainText = body.replace(/<[^>]*>/g, ' ').trim();
         const firstLine = plainText.split('\n')[0] || 'Untitled Note';

@@ -5,12 +5,10 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { Paths } from 'expo-file-system';
 import ViewShot from 'react-native-view-shot';
-import { Star, Archive, Share, Info, Eye, Clock, X, FolderInput, Trash2, FileText, FileDown, Image as ImageIcon, Copy, Printer, Music, Lock, Unlock, Sparkles } from 'lucide-react-native';
+import { Star, Archive, Share, Info, Eye, Clock, X, FolderInput, Trash2, FileText, FileDown, Image as ImageIcon, Copy, Printer, Music, Lock, Unlock } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { Note, Category } from '@/types';
-
-const { FirebaseAIModule } = NativeModules;
 
 interface NoteActionsSheetProps {
   visible: boolean;
@@ -67,9 +65,6 @@ export function NoteActionsSheet({
   const [showReminders, setShowReminders] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showExportOptions, setShowExportOptions] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
-  const [summary, setSummary] = useState('');
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const viewShotRef = useRef<ViewShot>(null);
 
   if (!note) return null;
@@ -400,46 +395,6 @@ export function NoteActionsSheet({
     }
   };
 
-  const handleSummarize = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    if (note.is_locked) {
-      Alert.alert('Locked', 'Unlock this note to summarize');
-      onLock?.();
-      return;
-    }
-
-    const plainText = stripHtml(note.body);
-
-    if (!plainText.trim()) {
-      Alert.alert('Empty Note', 'This note is empty. Add some content to generate a summary.');
-      return;
-    }
-
-    if (!FirebaseAIModule) {
-      Alert.alert('Not Available', 'AI summarization is not available on this device.');
-      return;
-    }
-
-    setShowSummary(true);
-    setIsGeneratingSummary(true);
-    setSummary('');
-    onClose();
-
-    try {
-      const contentToSummarize = plainText.substring(0, 2000); // Limit to 2000 chars
-      const prompt = `Summarize the following note in 2-3 concise sentences. Focus on the main points and key information:\n\n${contentToSummarize}`;
-
-      const generatedSummary = await FirebaseAIModule.generateText('gemini-2.0-flash-exp', prompt);
-      setSummary(generatedSummary.trim());
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      setSummary('Failed to generate summary. Please try again.');
-    } finally {
-      setIsGeneratingSummary(false);
-    }
-  };
-
   const handleExportAudio = async () => {
     try {
       if (note.is_locked) {
@@ -490,11 +445,6 @@ export function NoteActionsSheet({
   };
 
   const menuOptions = [
-    {
-      icon: Sparkles,
-      label: 'AI Summary',
-      onPress: handleSummarize,
-    },
     {
       icon: Share,
       label: 'Share',
@@ -806,56 +756,6 @@ export function NoteActionsSheet({
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* AI Summary Modal */}
-      <Modal
-        visible={showSummary}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSummary(false)}
-        statusBarTranslucent
-      >
-        <Pressable style={[styles.reminderOverlay, { backgroundColor: C.overlay }]} onPress={() => setShowSummary(false)}>
-          <Pressable style={[styles.summaryModal, { backgroundColor: C.surface }]} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.reminderHeader}>
-              <View style={styles.summaryHeaderLeft}>
-                <Sparkles size={24} color={C.primary} />
-                <Text style={[styles.reminderTitle, { color: C.text }]}>AI Summary</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowSummary(false)}>
-                <X size={24} color={C.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.summaryContent} contentContainerStyle={styles.summaryContentContainer}>
-              {isGeneratingSummary ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={C.primary} />
-                  <Text style={[styles.loadingText, { color: C.textSecondary }]}>Generating summary...</Text>
-                </View>
-              ) : (
-                <>
-                  {note.title && (
-                    <Text style={[styles.summaryNoteTitle, { color: C.textSecondary }]}>{note.title}</Text>
-                  )}
-                  <Text style={[styles.summaryText, { color: C.text }]}>{summary}</Text>
-
-                  <TouchableOpacity
-                    style={[styles.copySummaryButton, { backgroundColor: C.primary }]}
-                    onPress={() => {
-                      Clipboard.setString(summary);
-                      Alert.alert('Copied', 'Summary copied to clipboard');
-                    }}
-                  >
-                    <Copy size={16} color="#FFFFFF" />
-                    <Text style={styles.copySummaryButtonText}>Copy Summary</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </>
   );
 }
@@ -995,61 +895,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.fontSize.base,
     color: Colors.light.text,
-  },
-  summaryModal: {
-    backgroundColor: Colors.light.surface,
-    borderTopLeftRadius: BorderRadius.xxl,
-    borderTopRightRadius: BorderRadius.xxl,
-    maxHeight: '80%',
-    paddingBottom: Spacing.xl,
-  },
-  summaryHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  summaryContent: {
-    maxHeight: 400,
-  },
-  summaryContentContainer: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxxl,
-    gap: Spacing.md,
-  },
-  loadingText: {
-    fontSize: Typography.fontSize.base,
-    color: Colors.light.textSecondary,
-  },
-  summaryNoteTitle: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.light.textSecondary,
-    marginBottom: Spacing.md,
-    fontWeight: Typography.fontWeight.medium,
-  },
-  summaryText: {
-    fontSize: Typography.fontSize.base,
-    lineHeight: Typography.fontSize.base * Typography.lineHeight.relaxed,
-    color: Colors.light.text,
-    marginBottom: Spacing.xl,
-  },
-  copySummaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.light.primary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
-  },
-  copySummaryButtonText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
-    color: '#FFFFFF',
   },
 });

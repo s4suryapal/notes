@@ -13,17 +13,18 @@ import {
   Pressable,
   Alert,
   Image,
+  Keyboard,
 } from 'react-native';
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText, Calculator } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText, Calculator, Layout } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
 import { useToast } from '@/lib/ToastContext';
 import { useFeatureTour } from '@/lib/FeatureTourContext';
-import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, DocumentScanner, TextExtractor, FeatureTour } from '@/components';
+import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, DocumentScanner, TextExtractor, FeatureTour, TemplatePicker } from '@/components';
 import { SmartCalculationPanel } from '@/components/SmartCalculationPanel';
 import type { DocumentScanResult, OCRResult } from '@/components';
 import { Note } from '@/types';
@@ -78,6 +79,7 @@ export default function NoteEditorScreen() {
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
   const [showDocumentScanner, setShowDocumentScanner] = useState(false);
   const [showTextExtractor, setShowTextExtractor] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [loading, setLoading] = useState(!isNewNote);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [actionNoteId, setActionNoteId] = useState<string | null>(null);
@@ -631,6 +633,33 @@ export default function NoteEditorScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
   };
 
+  const handleTemplateSelect = (templateContent: string) => {
+    // Replace existing body with template
+    setBody(templateContent);
+    richTextRef.current?.setContentHTML(templateContent);
+
+    // Save immediately
+    immediateSave({
+      title,
+      body: templateContent,
+      categoryId: selectedCategory,
+      color: selectedColor,
+      images: imageManager.images,
+      audioRecordings: audioRecorder.audioRecordings,
+      checklistItems: checklistManager.checklistItems,
+    });
+
+    showInfo('Template applied');
+  };
+
+  const handleOpenTemplatePicker = () => {
+    Keyboard.dismiss();
+    // Wait for keyboard to dismiss before showing modal
+    setTimeout(() => {
+      setShowTemplatePicker(true);
+    }, 300);
+  };
+
   const handleToggleChecklistWithSave = useCallback(() => {
     checklistManager.handleToggleChecklist();
     if (checklistManager.showChecklist) {
@@ -806,6 +835,7 @@ export default function NoteEditorScreen() {
               actions.setUnderline,
               actions.insertBulletsList,
               actions.insertOrderedList,
+              'template',
               'smartcalc',
               'checklist',
               'scanner',
@@ -820,6 +850,7 @@ export default function NoteEditorScreen() {
               actions.redo,
             ]}
             iconMap={{
+              template: () => <Layout size={20} color={C.text} />,
               smartcalc: () => <Calculator size={20} color={smartCalcEnabled ? C.primary : C.text} />,
               checklist: () => <CheckSquare size={20} color={checklistManager.showChecklist ? C.primary : C.text} />,
               scanner: () => <ScanText size={20} color={C.text} />,
@@ -829,6 +860,7 @@ export default function NoteEditorScreen() {
               microphone: () => <Mic size={20} color={C.text} />,
               palette: () => <Palette size={20} color={paletteIconColor} />,
             }}
+            template={handleOpenTemplatePicker}
             smartcalc={toggleSmartCalc}
             checklist={handleToggleChecklistWithSave}
             scanner={() => setShowDocumentScanner(true)}
@@ -905,6 +937,13 @@ export default function NoteEditorScreen() {
         onNext={handleEditorTourNext}
         onSkip={handleEditorTourSkip}
         onComplete={handleEditorTourComplete}
+      />
+
+      {/* Template Picker */}
+      <TemplatePicker
+        visible={showTemplatePicker}
+        onClose={() => setShowTemplatePicker(false)}
+        onSelectTemplate={handleTemplateSelect}
       />
     </SafeAreaView>
   );

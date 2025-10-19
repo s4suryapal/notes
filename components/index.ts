@@ -29,3 +29,4 @@ export { default as FeatureTour } from './FeatureTour';
 export type { TourStep } from './FeatureTour';
 export { default as NativeAdCard } from './NativeAdCard';
 export { SmartCalculationPanel } from './SmartCalculationPanel';
+export { TemplatePicker } from './TemplatePicker';
