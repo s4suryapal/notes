@@ -5,19 +5,18 @@ import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 
 class CallEndPagerAdapter(
-    activity: FragmentActivity,
-    private val phoneNumber: String
+    activity: FragmentActivity
 ) : FragmentStateAdapter(activity) {
 
     override fun getItemCount(): Int = 4
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> NotesFragment.newInstance(phoneNumber)
-            1 -> MessagesFragment.newInstance(phoneNumber)
+            0 -> NotesFragment.newInstance()
+            1 -> MessagesFragment.newInstance()
             2 -> RemindersFragment.newInstance()
-            3 -> ActionsFragment.newInstance(phoneNumber)
-            else -> NotesFragment.newInstance(phoneNumber)
+            3 -> ActionsFragment.newInstance()
+            else -> NotesFragment.newInstance()
         }
     }
 }

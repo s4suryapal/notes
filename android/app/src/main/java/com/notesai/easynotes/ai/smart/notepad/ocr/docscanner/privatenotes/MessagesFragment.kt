@@ -24,14 +24,11 @@ import androidx.recyclerview.widget.RecyclerView
 class MessagesFragment : Fragment() {
 
     companion object {
-        private const val ARG_PHONE = "arg_phone"
         private const val VIEW_TYPE_QUICK = 0
         private const val VIEW_TYPE_CUSTOM = 1
 
-        fun newInstance(phoneNumber: String): MessagesFragment {
-            val f = MessagesFragment()
-            f.arguments = Bundle().apply { putString(ARG_PHONE, phoneNumber) }
-            return f
+        fun newInstance(): MessagesFragment {
+            return MessagesFragment()
         }
     }
 
@@ -44,7 +41,6 @@ class MessagesFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.fragment_messages, container, false)
-        val phone = arguments?.getString(ARG_PHONE) ?: ""
 
         val recycler = view.findViewById<RecyclerView>(R.id.rcvQuickResponse)
 

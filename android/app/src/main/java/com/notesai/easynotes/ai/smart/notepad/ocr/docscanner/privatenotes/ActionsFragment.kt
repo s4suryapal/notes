@@ -39,19 +39,15 @@ data class QuickAction(
 class ActionsFragment : Fragment() {
 
     companion object {
-        private const val ARG_PHONE = "arg_phone"
         private const val PREFS_KEY = "quick_actions_prefs"
-        
-        fun newInstance(phoneNumber: String): ActionsFragment {
-            val f = ActionsFragment()
-            f.arguments = Bundle().apply { putString(ARG_PHONE, phoneNumber) }
-            return f
+
+        fun newInstance(): ActionsFragment {
+            return ActionsFragment()
         }
     }
 
     private lateinit var quickActionsGrid: RecyclerView
     private lateinit var actionsAdapter: QuickActionsAdapter
-    private var phoneNumber: String = ""
     private val allActions = mutableMapOf<String, QuickAction>()
     private var selectedActionIds = mutableListOf<String>()
 
@@ -61,13 +57,12 @@ class ActionsFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.fragment_actions, container, false)
-        phoneNumber = arguments?.getString(ARG_PHONE) ?: ""
-        
+
         setupViews(view)
         initializeActions()
         loadSelectedActions()
         setupQuickActionsGrid()
-        
+
         return view
     }
 

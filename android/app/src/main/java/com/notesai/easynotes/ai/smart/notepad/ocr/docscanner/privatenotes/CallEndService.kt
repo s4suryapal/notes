@@ -17,21 +17,18 @@ class CallEndService : Service() {
     companion object {
         private const val TAG = "CallEndService"
         const val ACTION_SHOW_CALL_END = "show_call_end"
-        const val EXTRA_PHONE_NUMBER = "phone_number"
         const val EXTRA_DURATION = "duration"
         const val EXTRA_CALL_TYPE = "call_type"
         const val EXTRA_TIMESTAMP = "timestamp"
 
         fun createIntent(
             context: Context,
-            phoneNumber: String?,
             duration: Long,
             callType: String,
             timestamp: Long
         ): Intent {
             return Intent(context, CallEndService::class.java).apply {
                 action = ACTION_SHOW_CALL_END
-                putExtra(EXTRA_PHONE_NUMBER, phoneNumber ?: "")
                 putExtra(EXTRA_DURATION, duration)
                 putExtra(EXTRA_CALL_TYPE, callType)
                 putExtra(EXTRA_TIMESTAMP, timestamp)
@@ -46,21 +43,20 @@ class CallEndService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
         if (intent?.action == ACTION_SHOW_CALL_END) {
-            val phoneNumber = intent.getStringExtra(EXTRA_PHONE_NUMBER) ?: ""
             val duration = intent.getLongExtra(EXTRA_DURATION, 0)
             val callType = intent.getStringExtra(EXTRA_CALL_TYPE) ?: "unknown"
             val timestamp = intent.getLongExtra(EXTRA_TIMESTAMP, System.currentTimeMillis())
 
-            launchCallEndScreen(phoneNumber, duration, callType, timestamp)
+            launchCallEndScreen(duration, callType, timestamp)
         }
 
         return START_NOT_STICKY
     }
 
-    private fun launchCallEndScreen(phoneNumber: String, duration: Long, callType: String, timestamp: Long) {
+    private fun launchCallEndScreen(duration: Long, callType: String, timestamp: Long) {
         try {
             // Launch native CallEndActivity
-            val intent = CallEndActivity.createIntent(this, phoneNumber, duration, callType, timestamp).apply {
+            val intent = CallEndActivity.createIntent(this, duration, callType, timestamp).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             startActivity(intent)
@@ -68,7 +64,7 @@ class CallEndService : Service() {
         } catch (e: Exception) {
             // Fallback: show notification
             try {
-                showHeadsUpFallbackNotification(phoneNumber, duration, callType, timestamp)
+                showHeadsUpFallbackNotification(duration, callType, timestamp)
             } catch (ne: Exception) {
             }
         }
@@ -77,7 +73,7 @@ class CallEndService : Service() {
         stopSelf()
     }
 
-    private fun showHeadsUpFallbackNotification(phoneNumber: String, duration: Long, callType: String, timestamp: Long) {
+    private fun showHeadsUpFallbackNotification(duration: Long, callType: String, timestamp: Long) {
         val channelId = "call_end_alert"
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -92,7 +88,7 @@ class CallEndService : Service() {
             manager.createNotificationChannel(channel)
         }
 
-        val intent = CallEndActivity.createIntent(this, phoneNumber, duration, callType, timestamp).apply {
+        val intent = CallEndActivity.createIntent(this, duration, callType, timestamp).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         val pi = android.app.PendingIntent.getActivity(
@@ -104,7 +100,7 @@ class CallEndService : Service() {
 
         val notif = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_menu_call)
-            .setContentTitle("Call ended: ${if (phoneNumber.isNotEmpty()) phoneNumber else "Unknown"}")
+            .setContentTitle("Call ended: Private Number")
             .setContentText("Tap to open notes")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)

@@ -23,14 +23,12 @@ class CallEndActivity : FragmentActivity() {
 
     companion object {
         private const val TAG = "CallEndActivity"
-        const val EXTRA_PHONE_NUMBER = "phone_number"
         const val EXTRA_DURATION = "duration"
         const val EXTRA_CALL_TYPE = "call_type"
         const val EXTRA_TIMESTAMP = "timestamp"
 
         fun createIntent(
             context: Context,
-            phoneNumber: String?,
             duration: Long,
             callType: String,
             timestamp: Long
@@ -39,7 +37,6 @@ class CallEndActivity : FragmentActivity() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
                        Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(EXTRA_PHONE_NUMBER, phoneNumber ?: "")
                 putExtra(EXTRA_DURATION, duration)
                 putExtra(EXTRA_CALL_TYPE, callType)
                 putExtra(EXTRA_TIMESTAMP, timestamp)
@@ -78,7 +75,6 @@ class CallEndActivity : FragmentActivity() {
         val duration = intent.getLongExtra(EXTRA_DURATION, 0)
         val callType = intent.getStringExtra(EXTRA_CALL_TYPE) ?: ""
         val timestamp = intent.getLongExtra(EXTRA_TIMESTAMP, System.currentTimeMillis())
-        val phoneNumber = intent.getStringExtra(EXTRA_PHONE_NUMBER) ?: ""
 
         // Update header UI
         val titleText = findViewById<TextView>(R.id.titleText)
@@ -88,7 +84,8 @@ class CallEndActivity : FragmentActivity() {
         val callStatusDot = findViewById<android.view.View>(R.id.callStatusDot)
         val appLogo = findViewById<ImageView>(R.id.appLogo)
 
-        titleText.text = "Call Ended"
+        // Always show "Private Number" as we don't have phone number permission
+        titleText.text = "Private Number"
 
         val dateTimeInfo = formatDateAndTime(timestamp)
         timeText.text = "${dateTimeInfo.first}, ${dateTimeInfo.second}"
@@ -118,15 +115,15 @@ class CallEndActivity : FragmentActivity() {
         }
 
         // Setup tabs
-        setupTabs(phoneNumber)
+        setupTabs()
     }
 
-    private fun setupTabs(phoneNumber: String) {
+    private fun setupTabs() {
         try {
             val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
             val viewPager = findViewById<ViewPager2>(R.id.viewPager)
 
-            val adapter = CallEndPagerAdapter(this, phoneNumber)
+            val adapter = CallEndPagerAdapter(this)
             viewPager.adapter = adapter
 
             TabLayoutMediator(tabLayout, viewPager) { tab, position ->

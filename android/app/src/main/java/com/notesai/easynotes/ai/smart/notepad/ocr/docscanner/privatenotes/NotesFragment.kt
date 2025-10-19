@@ -32,12 +32,8 @@ data class NoteItem(
 class NotesFragment : Fragment() {
 
     companion object {
-        private const val ARG_PHONE = "arg_phone"
-
-        fun newInstance(phoneNumber: String): NotesFragment {
-            val f = NotesFragment()
-            f.arguments = Bundle().apply { putString(ARG_PHONE, phoneNumber) }
-            return f
+        fun newInstance(): NotesFragment {
+            return NotesFragment()
         }
     }
 
@@ -47,7 +43,6 @@ class NotesFragment : Fragment() {
     private var notesSection: View? = null
     private var quickActionsSection: View? = null
     private var dividerQuickActions: View? = null
-    private var phoneNumber: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,8 +51,6 @@ class NotesFragment : Fragment() {
     ): View? {
         // Inflate the layout from XML
         val view = inflater.inflate(R.layout.fragment_notes, container, false)
-
-        phoneNumber = arguments?.getString(ARG_PHONE) ?: ""
 
         setupViews(view)
         loadNotes()
@@ -118,7 +111,9 @@ class NotesFragment : Fragment() {
             // Read notes list of IDs from JS storage
             val idsStr = mmkv?.decodeString("notes:list")
             if (idsStr.isNullOrEmpty()) {
-                showQuickActionsOnly()
+                notesAdapter.setNotes(emptyList())
+                updateGridSpanForItemCount()
+                hideQuickActions()
                 return
             }
 
@@ -151,21 +146,25 @@ class NotesFragment : Fragment() {
                 }
             }
 
-            // Sort by updated time (most recent first) and take 10
+            // Sort by updated time (most recent first) and take 9
             val recentNotes = notesList
                 .sortedByDescending { it.updatedAt }
                 .take(9)
 
             if (recentNotes.isEmpty()) {
-                showQuickActionsOnly()
+                notesAdapter.setNotes(emptyList())
+                updateGridSpanForItemCount()
+                hideQuickActions()
             } else {
                 notesAdapter.setNotes(recentNotes)
                 updateGridSpanForItemCount()
-                showNotesAndActions()
+                hideQuickActions()
             }
 
         } catch (e: Exception) {
-            showQuickActionsOnly()
+            notesAdapter.setNotes(emptyList())
+            updateGridSpanForItemCount()
+            hideQuickActions()
         }
     }
 
@@ -186,36 +185,12 @@ class NotesFragment : Fragment() {
         return 0L
     }
 
-    private fun showQuickActionsOnly() {
+    private fun hideQuickActions() {
         try {
-            // Hide notes section and divider, expand quick actions to fill space above banner
-            notesAdapter.setNotes(emptyList())
-            updateGridSpanForItemCount()
-            notesSection?.visibility = View.GONE
+            // Hide quick actions section completely for recent notes only view
+            quickActionsSection?.visibility = View.GONE
             dividerQuickActions?.visibility = View.GONE
-            quickActionsSection?.let { section ->
-                val lp = section.layoutParams
-                if (lp is LinearLayout.LayoutParams) {
-                    lp.height = 0
-                    lp.weight = 1f
-                    section.layoutParams = lp
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun showNotesAndActions() {
-        try {
             notesSection?.visibility = View.VISIBLE
-            dividerQuickActions?.visibility = View.VISIBLE
-            quickActionsSection?.let { section ->
-                val lp = section.layoutParams
-                if (lp is LinearLayout.LayoutParams) {
-                    lp.height = LinearLayout.LayoutParams.WRAP_CONTENT
-                    lp.weight = 0f
-                    section.layoutParams = lp
-                }
-            }
         } catch (_: Exception) {}
     }
 
@@ -250,7 +225,6 @@ class NotesFragment : Fragment() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("action", "create_note")
                 putExtra("noteType", noteType)
-                putExtra("phoneNumber", phoneNumber)
             }
             startActivity(intent)
             activity?.finish()
