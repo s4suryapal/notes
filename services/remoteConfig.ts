@@ -37,6 +37,12 @@ class RemoteConfigService {
     language_screen_native_id: '',
     language_screen_show_first_done_interstitial: false,
     language_screen_first_done_interstitial_id: '',
+
+    // Settings Screen Ad controls
+    settings_banner_id: '',
+    settings_screen_show_banner: false,
+    settings_show_back_interstitial: false,
+    settings_screen_interstitial_id: '',
   };
 
   private constructor() {
@@ -328,6 +334,30 @@ class RemoteConfigService {
       nativeId: this.getString('language_screen_native_id'),
       showFirstDoneInterstitial: this.getBoolean('language_screen_show_first_done_interstitial'),
       firstDoneInterstitialId: this.getString('language_screen_first_done_interstitial_id'),
+    };
+  }
+
+  // ===== Settings Screen Ads =====
+
+  /**
+   * Get settings screen ad configuration
+   * @returns Configuration object for settings screen ads
+   */
+  getSettingsScreenAdConfig(): {
+    showBanner: boolean;
+    bannerId: string;
+    showBackInterstitial: boolean;
+    backInterstitialId: string;
+    showAppOpen: boolean;
+    appOpenId: string;
+  } {
+    return {
+      showBanner: this.getBoolean('settings_screen_show_banner'),
+      bannerId: this.getString('settings_banner_id'),
+      showBackInterstitial: this.getBoolean('settings_show_back_interstitial'),
+      backInterstitialId: this.getString('settings_screen_interstitial_id'),
+      showAppOpen: this.getBoolean('settings_screen_show_appopen'),
+      appOpenId: this.getString('settings_screen_appopen_id'),
     };
   }
 }

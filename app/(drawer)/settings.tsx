@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Share, Switch, Platform, Modal, Pressable } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Share, Switch, Platform, Modal, Pressable, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -27,6 +27,9 @@ import * as Sharing from 'expo-sharing';
 import { useToast } from '@/lib/ToastContext';
 import { setupPersistentNotification, removePersistentNotification } from '@/lib/persistentNotification';
 import { useTheme } from '@/hooks/useTheme';
+import { useAppOpenAdScreen } from '@/hooks/useAppOpenAdControl';
+import { useInterstitialAd, BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import remoteConfig from '@/services/remoteConfig';
 
 interface SettingsItemProps {
   icon: React.ReactNode;
@@ -68,6 +71,51 @@ export default function SettingsScreen() {
   const [persistentNotificationEnabled, setPersistentNotificationEnabled] = useState(false);
   const [notificationPermissionGranted, setNotificationPermissionGranted] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+
+  // Track screen for AppOpen ads
+  useAppOpenAdScreen('settings');
+
+  // Get Remote Config settings
+  const adConfig = remoteConfig.getSettingsScreenAdConfig();
+
+  // Back press interstitial
+  const { isLoaded: interstitialLoaded, isClosed: interstitialClosed, load: loadInterstitial, show: showInterstitial } = useInterstitialAd(
+    adConfig.showBackInterstitial && adConfig.backInterstitialId ? adConfig.backInterstitialId : TestIds.INTERSTITIAL
+  );
+
+  // Load interstitial on mount if enabled
+  useEffect(() => {
+    if (adConfig.showBackInterstitial) {
+      loadInterstitial();
+    }
+  }, [adConfig.showBackInterstitial]);
+
+  // Reload interstitial after it's closed
+  useEffect(() => {
+    if (interstitialClosed && adConfig.showBackInterstitial) {
+      loadInterstitial();
+    }
+  }, [interstitialClosed, adConfig.showBackInterstitial]);
+
+  // Handle back press with interstitial
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleBackPress();
+      return true; // Prevent default behavior
+    });
+
+    return () => backHandler.remove();
+  }, [interstitialLoaded, adConfig.showBackInterstitial]);
+
+  const handleBackPress = useCallback(() => {
+    if (adConfig.showBackInterstitial && interstitialLoaded) {
+      showInterstitial();
+      // Navigate back after ad closes
+      setTimeout(() => router.back(), 500);
+    } else {
+      router.back();
+    }
+  }, [adConfig.showBackInterstitial, interstitialLoaded]);
 
   useEffect(() => {
     checkNotificationPermission();
@@ -273,7 +321,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme].background }]} edges={['top', 'bottom']}>
       <View style={[styles.header, { backgroundColor: Colors[colorScheme].surface, borderBottomColor: Colors[colorScheme].border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: Colors[colorScheme].text }]}>Settings</Text>
@@ -402,6 +450,19 @@ export default function SettingsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Banner Ad */}
+      {adConfig.showBanner && adConfig.bannerId && (
+        <View style={styles.bannerContainer}>
+          <BannerAd
+            unitId={adConfig.bannerId || TestIds.BANNER}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: false,
+            }}
+          />
+        </View>
+      )}
 
       {/* Theme Selection Modal */}
       <Modal
@@ -581,6 +642,13 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: Colors.light.textTertiary,
     textAlign: 'center',
+  },
+  bannerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
   },
   modalOverlay: {
     flex: 1,
