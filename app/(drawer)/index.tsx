@@ -418,15 +418,18 @@ export default function HomeScreen() {
     }
   };
 
-  // Measure FAB position for tour
-  useEffect(() => {
+  // Handle FAB layout for tour positioning
+  const handleFabLayout = useCallback(() => {
     if (!loading && fabRef.current) {
-      const timer = setTimeout(() => {
+      // Use a longer delay to ensure layout is fully settled
+      setTimeout(() => {
         fabRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-          setFabPosition({ x, y, width, height });
+          // Verify we got valid measurements
+          if (width > 0 && height > 0) {
+            setFabPosition({ x, y, width, height });
+          }
         });
-      }, 100);
-      return () => clearTimeout(timer);
+      }, 300);
     }
   }, [loading]);
 
@@ -869,7 +872,12 @@ export default function HomeScreen() {
       </View>
 
       {!selectionMode && (
-        <FAB ref={fabRef} onPress={handleCreateNote} bottom={insets.bottom + 50 + Spacing.base} />
+        <FAB
+          ref={fabRef}
+          onPress={handleCreateNote}
+          bottom={insets.bottom + 50 + Spacing.base}
+          onLayout={handleFabLayout}
+        />
       )}
 
       {/* Bulk Actions Bottom Bar */}

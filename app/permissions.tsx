@@ -311,10 +311,10 @@ export default function PermissionsScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Section (contains Allow button and embedded Banner Ad) */}
+      {/* Fixed Footer: Contains Privacy, Button, and Banner Ad */}
       <View
         style={[
-          styles.bottomSection,
+          styles.fixedFooter,
           { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 8) }
         ]}
       >
@@ -341,16 +341,15 @@ export default function PermissionsScreen() {
           </Text>
         </Pressable>
 
-        {/* Banner Ad below button, inside footer */}
+        {/* Banner Ad - Full width */}
         <View
           style={[
             styles.footerAdContainer,
-            { borderTopColor: colors.border, backgroundColor: colors.background }
+            { borderTopColor: colors.border }
           ]}
         >
           <BannerAdComponent
             adType="adaptiveBanner"
-            style={styles.bannerAd}
             location="permissions"
           />
         </View>
@@ -393,7 +392,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 220, // Space for footer: privacy (30) + button (50) + ad (60) + padding (80)
   },
   permissionsContainer: {
     gap: 12,
@@ -424,19 +423,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  bottomSection: {
+  fixedFooter: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   privacySection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   privacyText: {
     fontSize: 11,
@@ -450,6 +449,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 22,
     alignItems: 'center',
+    marginBottom: 12,
   },
   allowButtonText: {
     color: 'white',
@@ -457,16 +457,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footerAdContainer: {
-    marginTop: 12,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderTopWidth: 0.5,
-    paddingHorizontal: 4,
     paddingVertical: 2,
-  },
-  bannerAd: {
-    width: '100%',
-    height: 46,
+    marginHorizontal: -16, // Extend to full width (negate parent padding)
   },
 });

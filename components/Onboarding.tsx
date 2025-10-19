@@ -17,10 +17,6 @@ import {
   FileText,
   CheckSquare,
   Palette,
-  ArrowLeft,
-  ArrowRight,
-  Trash2,
-  Archive,
   Search,
   Zap,
 } from 'lucide-react-native';
@@ -95,36 +91,11 @@ const slides: OnboardingSlide[] = [
   },
   {
     id: 3,
-    title: 'Master Gestures',
-    subtitle: 'Quick Actions at Your Fingertips',
-    description: 'Swipe to archive or delete, long press for more options. Make note management effortless.',
-    icon: <Text style={emojiStyles.welcome}>👆</Text>,
-    gradient: ['#4facfe', '#00f2fe'],
-    features: [
-      {
-        icon: <ArrowLeft size={24} color="#4ECDC4" />,
-        title: 'Swipe Left',
-        description: 'Archive notes for later',
-      },
-      {
-        icon: <ArrowRight size={24} color="#FF6B6B" />,
-        title: 'Swipe Right',
-        description: 'Delete notes quickly',
-      },
-      {
-        icon: <Text style={emojiStyles.gesture}>👆</Text>,
-        title: 'Long Press',
-        description: 'Open actions menu',
-      },
-    ],
-  },
-  {
-    id: 4,
     title: 'Smart & Automatic',
     subtitle: 'Focus on Creating',
     description: 'Auto-save as you type, powerful search, and intelligent organization. Your notes, effortlessly managed.',
     icon: <Text style={emojiStyles.welcome}>🤖</Text>,
-    gradient: ['#fa709a', '#fee140'],
+    gradient: ['#4facfe', '#00f2fe'],
     features: [
       {
         icon: <Zap size={24} color="#FFD54F" />,

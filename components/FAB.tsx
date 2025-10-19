@@ -8,9 +8,10 @@ interface FABProps {
   onPress: () => void;
   bottom?: number; // optional bottom offset to avoid overlapping UI (e.g., banner ads)
   right?: number;  // optional right offset if needed
+  onLayout?: (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void;
 }
 
-export const FAB = forwardRef<View, FABProps>(({ onPress, bottom, right }, ref) => {
+export const FAB = forwardRef<View, FABProps>(({ onPress, bottom, right, onLayout }, ref) => {
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
@@ -25,11 +26,12 @@ export const FAB = forwardRef<View, FABProps>(({ onPress, bottom, right }, ref) 
         right != null ? { right } : null,
       ]}
       collapsable={false}
+      onLayout={onLayout}
     >
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.8}
-        style={[StyleSheet.absoluteFill, styles.touchableContent]}
+        style={styles.touchable}
       >
         <Plus size={28} color="#FFFFFF" strokeWidth={3} />
       </TouchableOpacity>
@@ -50,8 +52,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Shadows.lg,
   },
-  touchableContent: {
+  touchable: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: Layout.fabSize / 2,
   },
 });

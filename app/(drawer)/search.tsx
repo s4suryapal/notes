@@ -6,7 +6,7 @@ import { ArrowLeft, Search as SearchIcon, X, ArrowUpDown, Check } from 'lucide-r
 import Fuse from 'fuse.js';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { SwipeableNoteCard, NoteActionsSheet, EmptyState } from '@/components';
+import { NoteCard, NoteActionsSheet, EmptyState } from '@/components';
 import { useNotes } from '@/lib/NotesContext';
 import { Note, SortBy } from '@/types';
 
@@ -193,18 +193,10 @@ export default function SearchScreen() {
             data={searchResults}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <SwipeableNoteCard
+              <NoteCard
                 note={item}
                 onPress={() => handleNotePress(item.id)}
                 onMenuPress={() => handleNoteMenu(item.id)}
-                onDelete={() => {
-                  setSelectedNote(item);
-                  handleDelete();
-                }}
-                onArchive={async () => {
-                  await toggleArchive(item.id);
-                }}
-                searchQuery={debouncedQuery}
               />
             )}
             contentContainerStyle={styles.listContainer}

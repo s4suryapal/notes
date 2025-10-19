@@ -1,5 +1,4 @@
 export { NoteCard } from './NoteCard';
-export { SwipeableNoteCard } from './SwipeableNoteCard';
 export { NoteCardSkeleton } from './NoteCardSkeleton';
 export { GridNoteCardSkeleton } from './GridNoteCardSkeleton';
 export { FolderSkeleton } from './FolderSkeleton';
