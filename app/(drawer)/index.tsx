@@ -150,6 +150,13 @@ export default function HomeScreen() {
   };
 
   const handleCreateNote = () => {
+    // Dismiss tour if it's showing
+    if (showHomeTour) {
+      setShowHomeTour(false);
+      setTourStepIndex(0);
+      setHomeTourCompleted();
+    }
+
     guardNavigation(() => {
       // Derive current tab's category id; skip if 'all'
       const currentCat = allCategories[index];

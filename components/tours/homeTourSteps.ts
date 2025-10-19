@@ -7,7 +7,7 @@ export const getHomeTourSteps = (fabPosition: { x: number; y: number; width: num
   return [
     {
       id: 'fab_button',
-      title: '✨ Create Your First Note',
+      title: 'Tap to add your first note',
       description: 'Tap this button to create a new note. You can add text, images, audio recordings, checklists, and more!',
       targetPosition: {
         x: fabPosition.x - padding,
@@ -17,6 +17,7 @@ export const getHomeTourSteps = (fabPosition: { x: number; y: number; width: num
       },
       tooltipPosition: 'top',
       shape: 'circle',
+      isFirstNote: true,
     },
   ];
 };

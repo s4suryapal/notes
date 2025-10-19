@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { CheckCircle2, AlertCircle, Info, XCircle, X } from 'lucide-react-native';
+import { CheckCircle2, AlertCircle, Info, XCircle, X, Archive, ArchiveRestore, Trash2, LogOut } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = 'success' | 'error' | 'info' | 'warning' | 'deleted' | 'archived' | 'restored' | 'exit';
 
 interface ToastProps {
   visible: boolean;
@@ -18,6 +18,7 @@ interface ToastProps {
     label: string;
     onPress: () => void;
   };
+  customColor?: string; // Optional custom color override
 }
 
 export function Toast({
@@ -27,6 +28,7 @@ export function Toast({
   duration = 3000,
   onDismiss,
   action,
+  customColor,
 }: ToastProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -93,34 +95,61 @@ export function Toast({
   };
 
   const getIcon = () => {
+    const iconColor = '#FFFFFF';
     switch (type) {
       case 'success':
-        return <CheckCircle2 size={20} color={colors.success} />;
+        return <CheckCircle2 size={20} color={iconColor} />;
       case 'error':
-        return <XCircle size={20} color={colors.error} />;
+        return <XCircle size={20} color={iconColor} />;
       case 'warning':
-        return <AlertCircle size={20} color={colors.warning} />;
+        return <AlertCircle size={20} color={iconColor} />;
+      case 'deleted':
+        return <Trash2 size={20} color={iconColor} />;
+      case 'archived':
+        return <Archive size={20} color={iconColor} />;
+      case 'restored':
+        return <ArchiveRestore size={20} color={iconColor} />;
+      case 'exit':
+        return <LogOut size={20} color={iconColor} />;
       case 'info':
       default:
-        return <Info size={20} color={colors.info} />;
+        return <Info size={20} color={iconColor} />;
     }
   };
 
   const getBackgroundColor = () => {
+    // If custom color is provided, use it
+    if (customColor) {
+      return customColor + 'E6'; // 90% opacity
+    }
+
     switch (type) {
       case 'success':
-        return colors.success + '15';
+        return colors.success + 'E6'; // 90% opacity
       case 'error':
-        return colors.error + '15';
+        return colors.error + 'E6';
       case 'warning':
-        return colors.warning + '15';
+        return colors.warning + 'E6';
+      case 'deleted':
+        return '#EF4444E6'; // Red-500
+      case 'archived':
+        return '#8B5CF6E6'; // Violet-500
+      case 'restored':
+        return '#10B981E6'; // Green-500
+      case 'exit':
+        return '#64748BE6'; // Slate-500
       case 'info':
       default:
-        return colors.surface;
+        return colors.primary + 'E6';
     }
   };
 
-  const getBorderColor = () => {
+  const getIconBackgroundColor = () => {
+    // Not currently used, but kept for potential future use
+    if (customColor) {
+      return customColor;
+    }
+
     switch (type) {
       case 'success':
         return colors.success;
@@ -128,6 +157,14 @@ export function Toast({
         return colors.error;
       case 'warning':
         return colors.warning;
+      case 'deleted':
+        return '#EF4444';
+      case 'archived':
+        return '#8B5CF6';
+      case 'restored':
+        return '#10B981';
+      case 'exit':
+        return '#64748B';
       case 'info':
       default:
         return colors.primary;
@@ -144,7 +181,6 @@ export function Toast({
           transform: [{ translateY }],
           opacity,
           backgroundColor: getBackgroundColor(),
-          borderLeftColor: getBorderColor(),
           bottom: insets.bottom + 72,
         },
       ]}
@@ -152,9 +188,11 @@ export function Toast({
       pointerEvents="box-none"
     >
       <View style={styles.content}>
-        <View style={styles.iconContainer}>{getIcon()}</View>
+        <View style={[styles.iconContainer, { backgroundColor: '#FFFFFF40' }]}>
+          {getIcon()}
+        </View>
         <Text
-          style={[styles.message, { color: colors.text }]}
+          style={[styles.message, { color: '#FFFFFF' }]}
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
         >
@@ -162,13 +200,13 @@ export function Toast({
         </Text>
         {action && (
           <TouchableOpacity onPress={action.onPress} style={styles.actionButton}>
-            <Text style={[styles.actionText, { color: getBorderColor() }] }>
+            <Text style={[styles.actionText, { color: '#FFFFFF' }]}>
               {action.label}
             </Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
-          <X size={18} color={colors.textSecondary} />
+          <X size={18} color="#FFFFFFCC" />
         </TouchableOpacity>
       </View>
 
@@ -178,7 +216,7 @@ export function Toast({
           style={[
             styles.progressBar,
             {
-              backgroundColor: getBorderColor(),
+              backgroundColor: '#FFFFFF60',
               width: progress.interpolate({ inputRange: [0, 1], outputRange: [cardWidth, 0] }),
             },
           ]}
@@ -193,46 +231,62 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Spacing.base,
     right: Spacing.base,
-    borderRadius: BorderRadius.lg,
-    borderLeftWidth: 4,
+    borderRadius: BorderRadius.xl,
     zIndex: 9999,
-    ...Shadows.lg,
+    ...Shadows.xl,
+    // Add backdrop blur effect simulation with darker overlay
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.base,
+    padding: Spacing.lg,
     gap: Spacing.sm,
   },
   iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: Spacing.xs,
   },
   message: {
     flex: 1,
     fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: 20,
   },
   actionButton: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: '#FFFFFF30',
+    borderRadius: BorderRadius.md,
   },
   actionText: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: 0.5,
   },
   closeButton: {
-    padding: Spacing.xs,
+    padding: Spacing.sm,
+    marginLeft: Spacing.xs,
   },
   progressTrack: {
-    height: 3,
+    height: 4,
     width: '100%',
-    backgroundColor: 'transparent',
+    backgroundColor: '#FFFFFF20',
     overflow: 'hidden',
-    borderBottomLeftRadius: BorderRadius.lg,
-    borderBottomRightRadius: BorderRadius.lg,
+    borderBottomLeftRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
   },
   progressBar: {
-    height: 3,
+    height: 4,
     alignSelf: 'flex-start',
+    borderRadius: BorderRadius.sm,
   },
 });

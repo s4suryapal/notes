@@ -26,6 +26,7 @@ export interface TourStep {
   };
   tooltipPosition?: 'top' | 'bottom' | 'left' | 'right';
   shape?: 'circle' | 'rectangle';
+  isFirstNote?: boolean; // Special styling for first note creation
 }
 
 interface FeatureTourProps {
@@ -82,10 +83,10 @@ export default function FeatureTour({
 
   if (!visible || !currentStep) return null;
 
-  const { targetPosition, shape = 'rectangle', tooltipPosition = 'bottom' } = currentStep;
+  const { targetPosition, shape = 'rectangle', tooltipPosition = 'bottom', isFirstNote = false } = currentStep;
 
   // Calculate spotlight dimensions
-  const spotlightPadding = 12;
+  const spotlightPadding = isFirstNote ? 8 : 12;
   const spotlightWidth = targetPosition.width + spotlightPadding * 2;
   const spotlightHeight = targetPosition.height + spotlightPadding * 2;
   const spotlightX = targetPosition.x - spotlightPadding;
@@ -140,9 +141,12 @@ export default function FeatureTour({
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <View style={styles.container}>
         {/* Dark Overlay with Spotlight Cutout */}
-        <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.overlay, { opacity: fadeAnim }]}
+          pointerEvents={isFirstNote ? 'box-none' : 'auto'}
+        >
           {/* This creates a semi-transparent overlay */}
-          <View style={StyleSheet.absoluteFill}>
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <View style={styles.overlayBackground} />
           </View>
 
@@ -159,71 +163,104 @@ export default function FeatureTour({
                 transform: [{ scale: pulseAnim }],
               },
             ]}
+            pointerEvents="none"
           />
         </Animated.View>
 
-        {/* Tooltip */}
-        <Animated.View
-          style={[
-            styles.tooltip,
-            {
-              left: tooltipPos.x,
-              top: tooltipPos.y,
-              opacity: fadeAnim,
-            },
-          ]}
-          onLayout={(event) => {
-            const { width, height } = event.nativeEvent.layout;
-            setTooltipLayout({ width, height });
-          }}
-        >
-          {/* Tooltip Arrow */}
-          {tooltipPosition === 'bottom' && (
-            <View style={[styles.arrow, styles.arrowTop]} />
-          )}
-          {tooltipPosition === 'top' && (
-            <View style={[styles.arrow, styles.arrowBottom]} />
-          )}
+        {/* Special First Note Tooltip */}
+        {isFirstNote ? (
+          <Animated.View
+            style={[
+              styles.firstNoteTooltip,
+              {
+                left: tooltipPos.x,
+                top: tooltipPos.y,
+                opacity: fadeAnim,
+              },
+            ]}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setTooltipLayout({ width, height });
+            }}
+          >
+            {/* Speech Bubble with Tail */}
+            <View style={styles.speechBubble}>
+              {/* Sparkles */}
+              <Text style={styles.sparkleLeft}>✨</Text>
+              <Text style={styles.sparkleRight}>✨</Text>
 
-          <View style={styles.tooltipContent}>
-            <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
-            <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
+              <Text style={styles.firstNoteText}>{currentStep.title}</Text>
 
-            {/* Progress Dots */}
-            <View style={styles.progressContainer}>
-              {steps.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.progressDot,
-                    index === currentStepIndex && styles.progressDotActive,
-                  ]}
-                />
-              ))}
+              {/* Tail pointing down to FAB */}
+              <View style={styles.bubbleTail} />
             </View>
+          </Animated.View>
+        ) : (
+          /* Standard Tooltip */
+          <Animated.View
+            style={[
+              styles.tooltip,
+              {
+                left: tooltipPos.x,
+                top: tooltipPos.y,
+                opacity: fadeAnim,
+              },
+            ]}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setTooltipLayout({ width, height });
+            }}
+          >
+            {/* Tooltip Arrow */}
+            {tooltipPosition === 'bottom' && (
+              <View style={[styles.arrow, styles.arrowTop]} />
+            )}
+            {tooltipPosition === 'top' && (
+              <View style={[styles.arrow, styles.arrowBottom]} />
+            )}
 
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
-                <Text style={styles.skipButtonText}>Skip Tour</Text>
-              </TouchableOpacity>
+            <View style={styles.tooltipContent}>
+              <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
+              <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
 
-              <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
-                <Text style={styles.nextButtonText}>
-                  {isLastStep ? 'Got it!' : 'Next'}
-                </Text>
-                {!isLastStep && (
-                  <ChevronRight size={16} color={Colors.light.surface} style={styles.nextIcon} />
-                )}
-              </TouchableOpacity>
+              {/* Progress Dots */}
+              <View style={styles.progressContainer}>
+                {steps.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.progressDot,
+                      index === currentStepIndex && styles.progressDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+                  <Text style={styles.skipButtonText}>Skip Tour</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
+                  <Text style={styles.nextButtonText}>
+                    {isLastStep ? 'Got it!' : 'Next'}
+                  </Text>
+                  {!isLastStep && (
+                    <ChevronRight size={16} color={Colors.light.surface} style={styles.nextIcon} />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        )}
 
-        {/* Close Button */}
-        <TouchableOpacity style={styles.closeButton} onPress={onSkip}>
-          <X size={24} color={Colors.light.surface} />
-        </TouchableOpacity>
+        {/* Close Button - only show for standard tours */}
+        {!isFirstNote && (
+          <TouchableOpacity style={styles.closeButton} onPress={onSkip}>
+            <X size={24} color={Colors.light.surface} />
+          </TouchableOpacity>
+        )}
       </View>
     </Modal>
   );
@@ -359,5 +396,58 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: BorderRadius.round,
+  },
+  // First Note specific styles
+  firstNoteTooltip: {
+    position: 'absolute',
+  },
+  speechBubble: {
+    backgroundColor: '#4A90E2',
+    borderRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    maxWidth: 280,
+    minWidth: 240,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+    position: 'relative',
+  },
+  sparkleLeft: {
+    position: 'absolute',
+    left: -8,
+    top: -8,
+    fontSize: 24,
+  },
+  sparkleRight: {
+    position: 'absolute',
+    right: -8,
+    top: 8,
+    fontSize: 20,
+  },
+  firstNoteText: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: Typography.fontSize.base * 1.4,
+  },
+  bubbleTail: {
+    position: 'absolute',
+    bottom: -12,
+    left: '50%',
+    marginLeft: -12,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#4A90E2',
   },
 });
