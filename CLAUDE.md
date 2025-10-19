@@ -81,3 +81,8 @@ Located in `components/`:
 When working with navigation, remember that Expo Router uses file-based routing - file location determines the route path. The `(tabs)` directory uses parentheses to create a route group without adding to the URL path.
 
 The app currently uses mock data. When implementing database features, ensure Supabase client is properly configured with environment variables before attempting CRUD operations.
+
+### Important Build Rules
+- **NEVER run `npx expo prebuild`** - This will delete custom native code and configurations
+- Native Android/iOS code is already configured with custom modules and ProGuard rules
+- Use `npm run android` or `npm run ios` for building, not prebuild commands
