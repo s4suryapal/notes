@@ -44,9 +44,11 @@ export default function OverlayPermissionScreen() {
         } catch {}
         if (__DEV__) console.log('📱 [OVERLAY_PERMISSION] Overlay permission after settings:', hasOverlay);
 
-        // Navigate to home regardless of permission grant status
+        // Mark first launch complete and navigate to home
+        await markFirstLaunchComplete();
         setIsRequesting(false);
-        router.replace('/');
+        // Navigate directly to home (drawer) to avoid index.tsx routing
+        router.replace('/(drawer)');
       }
     };
 
@@ -60,14 +62,17 @@ export default function OverlayPermissionScreen() {
   // Hardware back button handler - go to home
   useFocusEffect(
     React.useCallback(() => {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', async () => {
         if (__DEV__) console.log('📱 [OVERLAY_PERMISSION] Back button pressed - going to home');
-        router.replace('/');
+        // Mark first launch complete before navigating
+        await markFirstLaunchComplete();
+        // Navigate directly to home (drawer) to avoid index.tsx routing
+        router.replace('/(drawer)');
         return true; // Prevent default back behavior
       });
 
       return () => backHandler.remove();
-    }, [])
+    }, [markFirstLaunchComplete])
   );
 
   const handleEnablePermission = async () => {
@@ -89,7 +94,8 @@ export default function OverlayPermissionScreen() {
           setIsRequesting(false);
           if (__DEV__) console.log('🎉 [OVERLAY_PERMISSION] Overlay already granted - going to home');
           await markFirstLaunchComplete();
-          router.replace('/');
+          // Navigate directly to home (drawer) to avoid index.tsx routing
+          router.replace('/(drawer)');
           return;
         }
 
@@ -126,14 +132,16 @@ export default function OverlayPermissionScreen() {
         if (__DEV__) console.log('iOS - no overlay permission needed');
         setIsRequesting(false);
         await markFirstLaunchComplete();
-        router.replace('/');
+        // Navigate directly to home (drawer) to avoid index.tsx routing
+        router.replace('/(drawer)');
       }
     } catch (error) {
       if (__DEV__) console.log('Overlay permission error:', error);
       // Continue to main app even if error
       setIsRequesting(false);
       await markFirstLaunchComplete();
-      router.replace('/');
+      // Navigate directly to home (drawer) to avoid index.tsx routing
+      router.replace('/(drawer)');
     }
   };
 

@@ -110,10 +110,11 @@ export default function SettingsScreen() {
   const handleBackPress = useCallback(() => {
     if (adConfig.showBackInterstitial && interstitialLoaded) {
       showInterstitial();
-      // Navigate back after ad closes
-      setTimeout(() => router.back(), 500);
+      // Navigate to home (drawer) after ad closes
+      setTimeout(() => router.push('/(drawer)'), 500);
     } else {
-      router.back();
+      // Navigate directly to home (drawer)
+      router.push('/(drawer)');
     }
   }, [adConfig.showBackInterstitial, interstitialLoaded]);
 

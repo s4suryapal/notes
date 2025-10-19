@@ -41,16 +41,19 @@ function AppNavigation() {
   // ⚡ SPLASH & INITIALIZATION FLOW
   // This controls when the native splash screen is dismissed
   //
-  // Launch Flow (First & Subsequent):
-  // 1. Initialize critical services (AdMob SDK for banner ads)
-  // 2. Wait for LanguageContext to load (determines first-launch state)
-  // 3. Hide splash → Show app
-  //    (Banner ads load with shimmer, no blocking wait needed)
-  // 4. Defer Firebase + Remote Config + AppOpen ads to BACKGROUND
+  // Launch Flow:
+  // FIRST LAUNCH:
+  // 1. Initialize AdMob SDK (required for ads)
+  // 2. Initialize Remote Config (get ad configurations)
+  // 3. Wait for LanguageContext to load (determines first-launch state)
+  // 4. Hide splash → Show language screen (ads ready to display)
+  // 5. Defer Firebase (Crashlytics, Analytics) to BACKGROUND
   //
-  // Note: AppOpen ads are handled separately by native AppOpenAdManager
-  // They only show when returning from background, NOT on app launch
-  // Remote Config is fetched in background since it's not needed immediately
+  // SUBSEQUENT LAUNCHES:
+  // 1. Initialize AdMob SDK
+  // 2. Wait for LanguageContext
+  // 3. Hide splash → Show app
+  // 4. Defer Firebase + Remote Config to BACKGROUND
   //
   // Safety: 5s maximum splash time (see useEffect below)
   useEffect(() => {
@@ -62,7 +65,7 @@ function AppNavigation() {
         console.log('[SPLASH] 🚀 Starting app initialization...');
         const startTime = Date.now();
 
-        // Step 1: Initialize CRITICAL services only (AdMob for banner ads)
+        // Step 1: Initialize CRITICAL services (AdMob SDK)
         await admobService.initialize();
         console.log('[ADMOB] ✅ AdMob SDK initialized');
 
@@ -95,7 +98,25 @@ function AppNavigation() {
           }, 1000);
         });
 
-        // Step 3: Wait for navigation to be ready and first screen to render
+        // Step 3: FOR FIRST LAUNCH - Initialize Remote Config BEFORE hiding splash
+        // This ensures ad configuration is ready when language screen displays
+        if (isFirstLaunch) {
+          console.log('[SPLASH] 📺 First launch detected - initializing Remote Config for ads...');
+          try {
+            const rcInitialized = await remoteConfig.initialize();
+            if (rcInitialized) {
+              console.log('[REMOTE_CONFIG] ✅ Remote Config initialized (first launch)');
+              const langConfig = remoteConfig.getLanguageScreenAdConfig();
+              console.log('[REMOTE_CONFIG] 📺 Language screen ad config loaded:', langConfig);
+            } else {
+              console.log('[REMOTE_CONFIG] ⚠️  Using default ad configuration');
+            }
+          } catch (rcError) {
+            console.log('[REMOTE_CONFIG] ⚠️  Remote Config init failed, using defaults:', rcError);
+          }
+        }
+
+        // Step 4: Wait for navigation to be ready and first screen to render
         // This ensures the UI is actually visible before hiding splash
         await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -110,9 +131,10 @@ function AppNavigation() {
           }
           setIsInitialized(true);
 
-          // Step 4: Initialize non-critical services in BACKGROUND
+          // Step 5: Initialize non-critical services in BACKGROUND
           // This doesn't block the user from seeing the app
-          // Includes: Firebase (Crashlytics, Analytics) + Remote Config + AppOpen ads
+          // Includes: Firebase (Crashlytics, Analytics)
+          // For non-first-launch: Also includes Remote Config + AppOpen ads
           setTimeout(() => {
             (async () => {
               try {
@@ -136,43 +158,44 @@ function AppNavigation() {
                   await analytics.logAppOpen();
                 }
 
-                // Initialize Remote Config and configure AppOpen ads
-                console.log('[REMOTE_CONFIG] 🔄 Fetching AppOpen ad configuration...');
-                const initialized = await remoteConfig.initialize();
+                // For non-first-launch: Initialize Remote Config in background
+                if (!isFirstLaunch) {
+                  console.log('[REMOTE_CONFIG] 🔄 Fetching AppOpen ad configuration (background)...');
+                  const initialized = await remoteConfig.initialize();
 
-                if (initialized) {
-                  console.log('[REMOTE_CONFIG] ✅ Remote Config initialized (background)');
-
-                  const appOpenConfig = remoteConfig.getAppOpenAdConfig();
-                  console.log('[APPOPEN] 📺 Configuring AppOpen ads from Remote Config:', appOpenConfig);
-
-                  // Set global enabled/disabled state
-                  await appOpenAd.setEnabled(appOpenConfig.enabled);
-
-                  // Configure which screens should show AppOpen ads
-                  if (appOpenConfig.enabledScreens.length > 0) {
-                    appOpenAd.setEnabledScreens(appOpenConfig.enabledScreens);
-                    console.log('[APPOPEN] ✅ Enabled screens:', appOpenConfig.enabledScreens);
+                  if (initialized) {
+                    console.log('[REMOTE_CONFIG] ✅ Remote Config initialized (background)');
                   } else {
-                    appOpenAd.setEnabledScreens([]);
-                    console.log('[APPOPEN] ✅ Enabled on ALL screens');
+                    console.log('[REMOTE_CONFIG] ⚠️  Using default configuration');
                   }
-
-                  // Set ad unit ID (check screen-specific settings)
-                  if (appOpenConfig.settingsScreen.enabled && appOpenConfig.settingsScreen.adUnitId) {
-                    appOpenAd.setAdUnitId(appOpenConfig.settingsScreen.adUnitId);
-                    console.log('[APPOPEN] ✅ Using settings screen ad unit ID');
-                  } else {
-                    appOpenAd.setAdUnitId(null);
-                    console.log('[APPOPEN] ✅ Using default ad unit ID');
-                  }
-
-                  console.log('[APPOPEN] ✅ AppOpen ads configured from Remote Config (background)');
-                } else {
-                  console.log('[REMOTE_CONFIG] ⚠️  Using default AppOpen ad configuration');
-                  // AppOpen ads will use default settings from native
                 }
 
+                // Configure AppOpen ads from Remote Config
+                const appOpenConfig = remoteConfig.getAppOpenAdConfig();
+                console.log('[APPOPEN] 📺 Configuring AppOpen ads from Remote Config:', appOpenConfig);
+
+                // Set global enabled/disabled state
+                await appOpenAd.setEnabled(appOpenConfig.enabled);
+
+                // Configure which screens should show AppOpen ads
+                if (appOpenConfig.enabledScreens.length > 0) {
+                  appOpenAd.setEnabledScreens(appOpenConfig.enabledScreens);
+                  console.log('[APPOPEN] ✅ Enabled screens:', appOpenConfig.enabledScreens);
+                } else {
+                  appOpenAd.setEnabledScreens([]);
+                  console.log('[APPOPEN] ✅ Enabled on ALL screens');
+                }
+
+                // Set ad unit ID (check screen-specific settings)
+                if (appOpenConfig.settingsScreen.enabled && appOpenConfig.settingsScreen.adUnitId) {
+                  appOpenAd.setAdUnitId(appOpenConfig.settingsScreen.adUnitId);
+                  console.log('[APPOPEN] ✅ Using settings screen ad unit ID');
+                } else {
+                  appOpenAd.setAdUnitId(null);
+                  console.log('[APPOPEN] ✅ Using default ad unit ID');
+                }
+
+                console.log('[APPOPEN] ✅ AppOpen ads configured from Remote Config (background)');
                 console.log('[BACKGROUND] ✅ All background services initialized');
               } catch (error) {
                 console.log('[BACKGROUND] ⚠️  Background init failed:', error);
@@ -194,7 +217,7 @@ function AppNavigation() {
     })();
 
     return () => { cancelled = true; };
-  }, [isInitialized]);
+  }, [isInitialized, isFirstLaunch]);
 
   // Safety: hide native splash after 5s max
   useEffect(() => {
