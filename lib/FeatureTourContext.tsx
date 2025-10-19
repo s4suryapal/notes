@@ -125,11 +125,8 @@ export function FeatureTourProvider({ children }: { children: React.ReactNode })
     ]
   );
 
-  // Don't render children until we've loaded the tour status
-  if (isLoading) {
-    return null;
-  }
-
+  // Render children immediately - don't block app rendering
+  // isLoading state is tracked and consumers can check it if needed
   return (
     <FeatureTourContext.Provider value={value}>
       {children}
