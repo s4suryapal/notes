@@ -71,7 +71,6 @@ class CallReceiver : BroadcastReceiver() {
                             try {
                                 val activityIntent = CallEndActivity.createIntent(
                                     context,
-                                    incomingNumber,
                                     duration,
                                     callType,
                                     System.currentTimeMillis()
@@ -81,7 +80,6 @@ class CallReceiver : BroadcastReceiver() {
                                 } catch (ae: Exception) {
                                     val serviceIntent = CallEndService.createIntent(
                                         context,
-                                        incomingNumber,
                                         duration,
                                         callType,
                                         System.currentTimeMillis()
@@ -93,7 +91,6 @@ class CallReceiver : BroadcastReceiver() {
                                     Thread.sleep(500)
                                     val retryIntent = CallEndService.createIntent(
                                         context,
-                                        incomingNumber,
                                         duration,
                                         callType,
                                         System.currentTimeMillis()
@@ -127,7 +124,6 @@ class CallReceiver : BroadcastReceiver() {
                                     try {
                                         val activityIntent = CallEndActivity.createIntent(
                                             context,
-                                            incomingNumber,
                                             duration,
                                             callType,
                                             System.currentTimeMillis()
@@ -136,7 +132,6 @@ class CallReceiver : BroadcastReceiver() {
                                     } catch (e: Exception) {
                                         val serviceIntent = CallEndService.createIntent(
                                             context,
-                                            incomingNumber,
                                             duration,
                                             callType,
                                             System.currentTimeMillis()
