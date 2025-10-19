@@ -236,14 +236,14 @@ export class AdMobService {
         requestNonPersonalizedAdsOnly: false,
       });
 
-      this.appOpenAd.addAdEventListener('loaded', () => {
+      this.appOpenAd.addAdEventListener(AdEventType.LOADED, () => {
         this.appOpenAdLoaded = true;
         this.appOpenAdLoadTime = Date.now();
         this.isLoadingAppOpenAd = false;
         logAdMob('APP_OPEN_LOADED', 'App Open Ad loaded successfully');
       });
 
-      this.appOpenAd.addAdEventListener('error', (error) => {
+      this.appOpenAd.addAdEventListener(AdEventType.ERROR, (error) => {
         this.isLoadingAppOpenAd = false;
         this.appOpenAdLoaded = false;
         logAdMob('APP_OPEN_ERROR', 'App Open Ad failed to load', { error });
@@ -292,7 +292,7 @@ export class AdMobService {
       }
 
       // Add event listeners before showing
-      this.appOpenAd.addAdEventListener('closed', () => {
+      this.appOpenAd.addAdEventListener(AdEventType.CLOSED, () => {
         this.isShowingAppOpenAd = false;
         this.appOpenAd = null;
         this.appOpenAdLoaded = false;
@@ -301,7 +301,7 @@ export class AdMobService {
         this.loadAppOpenAd();
       });
 
-      this.appOpenAd.addAdEventListener('opened', () => {
+      this.appOpenAd.addAdEventListener(AdEventType.OPENED, () => {
         logAdMob('APP_OPEN_OPENED', 'App Open Ad opened');
       });
 

@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/hooks/useTheme';
 
 // Android-only AdMob imports
-import { BannerAd, BannerAdSize, AdSize } from 'react-native-google-mobile-ads';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import admobService from '@/services/admob';
 import analytics from '@/services/analytics';
 import BannerAdManager from '@/services/bannerAdManager';
@@ -83,7 +83,7 @@ function ShimmerPlaceholder({
         height,
         backgroundColor: baseColor,
         borderColor: '#e0e0e0'
-      }
+      } as any
     ]}>
       {/* Shimmer gradient overlay */}
       <Animated.View
@@ -131,9 +131,9 @@ function BannerAdComponent({
   const [adState, setAdState] = useState<'loading' | 'ready' | 'loaded' | 'error'>('loading');
   const [adError, setAdError] = useState<string | null>(null);
   const bannerRef = useRef<any>(null);
-  const initTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitialized = useRef(false); // Track if this instance has been initialized
-  const loadFallbackTimerRef = useRef<NodeJS.Timeout | null>(null); // Fallback if no load/error events
+  const loadFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Fallback if no load/error events
   const prevAdStateRef = useRef<'loading' | 'ready' | 'loaded' | 'error'>(adState);
   const [measuredWidth, setMeasuredWidth] = useState<number>(0);
 
@@ -144,7 +144,7 @@ function BannerAdComponent({
   const isOwnerRef = useRef(false);
   const markedLoadingRef = useRef(false);
   const [owned, setOwned] = useState<boolean>(false);
-  const reclaimTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reclaimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewMountedRef = useRef(false);
 
   const logBanner = useCallback((event: string, data?: any) => {
@@ -315,7 +315,7 @@ function BannerAdComponent({
 
   // Memoize container styles to prevent recalculation
   const containerStyle = useMemo(() => {
-    const baseStyle = [styles.container];
+    const baseStyle: any[] = [styles.container];
 
     if (isInlineAdaptive) {
       baseStyle.push(styles.adaptiveContainer);
@@ -456,48 +456,50 @@ function BannerAdComponent({
           }
         }}
       >
-        {logBanner('render: banner', { adState, adUnitId })}
-        <BannerAd
-          key={bannerKey}
-          ref={bannerRef}
-          unitId={adUnitId}
-          size={adSize}
-          maxHeight={isInlineAdaptive ? getAdHeight() : undefined}
-          requestOptions={{
-            requestNonPersonalizedAdsOnly: false,
-            keywords: ['notes', 'productivity', 'organization'],
-          }}
-          onAdLoaded={handleAdLoaded}
-          onAdFailedToLoad={handleAdFailedToLoad}
-          onAdOpened={handleAdOpened}
-          onAdClosed={handleAdClosed}
-          onPaid={(value) => {
-            // Track ad revenue (optional)
-            logBanner('onPaid', { value: value.value, currency: value.currencyCode });
-            analytics.logScreenView(`banner_ad_paid_${location}`);
-          }}
-          onAdClicked={() => {
-            // Track ad clicks
-            logBanner('onAdClicked');
-            analytics.logScreenView(`banner_ad_clicked_${location}`);
-          }}
-          onAdImpression={() => {
-            // Track ad impressions
-            logBanner('onAdImpression');
-            analytics.logScreenView(`banner_ad_impression_${location}`);
-          }}
-          style={[
-            adState === 'loaded' ? styles.visibleAd : styles.loadingAd,
-            styles.bannerAdBase
-          ]}
-        />
+        {/* Log banner render */}
+        {(() => { logBanner('render: banner', { adState, adUnitId }); return null; })()}
+        <View style={[
+          adState === 'loaded' ? styles.visibleAd : styles.loadingAd,
+          styles.bannerAdBase
+        ]}>
+          <BannerAd
+            key={bannerKey}
+            ref={bannerRef}
+            unitId={adUnitId}
+            size={adSize}
+            maxHeight={isInlineAdaptive ? getAdHeight() : undefined}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: false,
+              keywords: ['notes', 'productivity', 'organization'],
+            }}
+            onAdLoaded={handleAdLoaded}
+            onAdFailedToLoad={handleAdFailedToLoad}
+            onAdOpened={handleAdOpened}
+            onAdClosed={handleAdClosed}
+            onPaid={(value) => {
+              // Track ad revenue (optional)
+              logBanner('onPaid', { value: value.value, currency: value.currency });
+              analytics.logScreenView(`banner_ad_paid_${location}`);
+            }}
+            onAdClicked={() => {
+              // Track ad clicks
+              logBanner('onAdClicked');
+              analytics.logScreenView(`banner_ad_clicked_${location}`);
+            }}
+            onAdImpression={() => {
+              // Track ad impressions
+              logBanner('onAdImpression');
+              analytics.logScreenView(`banner_ad_impression_${location}`);
+            }}
+          />
+        </View>
 
         {/* Show shimmer effect until ad loads ('loading' or 'ready') */}
         {(adState === 'loading' || adState === 'ready') && (
           <Animated.View
             style={[
               styles.loadingOverlayContainer,
-              { opacity: adState === 'loaded' ? 0 : 1 }
+              { opacity: (adState === 'loading' || adState === 'ready') ? 1 : 0 }
             ]}
           >
             <ShimmerPlaceholder

@@ -66,7 +66,7 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 function base64ToArrayBuffer(b64: string): ArrayBuffer {
-  return base64ToBytes(b64).buffer;
+  return base64ToBytes(b64).buffer as ArrayBuffer;
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -79,11 +79,11 @@ async function getOrCreateAesKey(): Promise<CryptoKey> {
   const stored = await SecureStore.getItemAsync(AES_KEY_V1);
   if (stored) {
     const rawBytes = base64ToBytes(stored);
-    return subtle.importKey('raw', rawBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    return subtle.importKey('raw', rawBytes.buffer as ArrayBuffer, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   }
   // Generate 32-byte key
   const rawKey = await getRandomBytes(32);
-  const key = await subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  const key = await subtle.importKey('raw', rawKey.buffer as ArrayBuffer, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   await SecureStore.setItemAsync(AES_KEY_V1, bytesToBase64(rawKey));
   return key;
 }
@@ -106,8 +106,8 @@ export async function encryptText(text: string): Promise<string> {
     const key = await getOrCreateAesKey();
     const iv = await getRandomBytes(12); // 96-bit IV
     const enc = new TextEncoder().encode(text);
-    const cipher = await subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-    const payload = `aesgcm:v1:${arrayBufferToBase64(iv.buffer)}:${arrayBufferToBase64(cipher)}`;
+    const cipher = await subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, key, enc.buffer as ArrayBuffer);
+    const payload = `aesgcm:v1:${arrayBufferToBase64(iv.buffer as ArrayBuffer)}:${arrayBufferToBase64(cipher)}`;
     return payload;
   } catch (error) {
     console.error('Error encrypting text:', error);
@@ -141,7 +141,7 @@ export async function decryptText(encryptedText: string): Promise<string> {
     const cipher = base64ToBytes(parts[3]);
     const subtle = globalThis.crypto!.subtle;
     const key = await getOrCreateAesKey();
-    const plainBuf = await subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+    const plainBuf = await subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, key, cipher.buffer as ArrayBuffer);
     return new TextDecoder().decode(plainBuf);
   } catch (error) {
     console.error('Error decrypting text:', error);

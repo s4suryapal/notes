@@ -50,7 +50,7 @@ export class InAppReviewService {
   private async loadModule(): Promise<boolean> {
     if (this.inAppReview) return true;
     try {
-      const module = await import('react-native-in-app-review');
+      const module = await import('react-native-in-app-review' as any);
       this.inAppReview = module.default || module;
       return true;
     } catch (e) {

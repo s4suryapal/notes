@@ -2,8 +2,11 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Keyboard } from 'react-native';
 import { Check, Plus, X } from 'lucide-react-native';
 import { runOnJS } from 'react-native-reanimated';
-import ColorPicker2, { Panel1, HueSlider, type returnedResults } from 'reanimated-color-picker';
+import ColorPicker2, { Panel1, HueSlider } from 'reanimated-color-picker';
 import { NoteColors, Colors, Spacing, BorderRadius, Typography } from '@/constants/theme';
+
+// Type for color picker results
+type returnedResults = { hex: string };
 
 interface ColorPickerProps {
   selectedColor: string | null;

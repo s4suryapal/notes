@@ -29,11 +29,9 @@ export const FAB = forwardRef<View, FABProps>(({ onPress, bottom, right }, ref) 
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.8}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, styles.touchableContent]}
       >
-        <View style={styles.iconContainer}>
-          <Plus size={28} color="#FFFFFF" strokeWidth={3} />
-        </View>
+        <Plus size={28} color="#FFFFFF" strokeWidth={3} />
       </TouchableOpacity>
     </View>
   );
@@ -52,7 +50,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Shadows.lg,
   },
-  iconContainer: {
+  touchableContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },

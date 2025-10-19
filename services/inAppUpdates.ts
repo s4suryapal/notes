@@ -65,7 +65,7 @@ export class InAppUpdatesService {
   private async loadModule(): Promise<boolean> {
     if (this.inAppUpdates) return true;
     try {
-      const module = await import('sp-react-native-in-app-updates');
+      const module = await import('sp-react-native-in-app-updates' as any);
       this.inAppUpdates = module.default || module;
       return true;
     } catch (e) {
@@ -344,7 +344,7 @@ export class InAppUpdatesService {
       return await this.startUpdate(updateType);
     } else if (Platform.OS === 'ios') {
       // iOS: Show alert with App Store link
-      return await this.showIOSUpdateAlert(updateInfo, shouldForceImmediate);
+      return await this.showIOSUpdateAlert(updateInfo, !!shouldForceImmediate);
     }
 
     return false;

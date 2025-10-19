@@ -51,7 +51,7 @@ export default function DocumentScanner({ visible, onClose, onScanComplete }: Do
         maxNumDocuments: 5, // Allow up to 5 pages
         letUserAdjustCrop: true, // Let user adjust detected edges
         responseType: 'imageFilePath' as any, // Get file paths - type issue in library
-      });
+      } as any);
 
       if (scannedImages && scannedImages.length > 0) {
         // Return first scanned image as primary, all as array
