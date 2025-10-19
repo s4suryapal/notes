@@ -1,6 +1,8 @@
 import { useCallback, useRef } from 'react';
+import { NativeModules } from 'react-native';
 import { Note, ChecklistItem as ChecklistItemType, CreateNoteInput } from '@/types';
-import { generateNoteTitle } from '@/lib/firebaseAI';
+
+const { FirebaseAIModule } = NativeModules;
 
 interface UseAutoSaveProps {
   createNote: (input: CreateNoteInput) => Promise<Note>;
@@ -67,9 +69,27 @@ export function useAutoSave({ createNote, updateNote }: UseAutoSaveProps) {
     let finalTitle = title;
     if (!hasTitleContent && (hasBodyContent || hasImages || hasAudio || hasChecklist)) {
       try {
-        console.log('Generating auto-title...');
-        finalTitle = await generateNoteTitle(body || 'New Note', 50);
-        console.log('Generated title:', finalTitle);
+        // Strip HTML and get plain text
+        const plainText = body.replace(/<[^>]*>/g, ' ').trim();
+
+        if (plainText.length > 0 && FirebaseAIModule) {
+          console.log('Generating auto-title with Firebase AI...');
+          const contentPreview = plainText.substring(0, 500);
+          const prompt = `Generate a concise, descriptive title (maximum 50 characters) for this note content. Return ONLY the title, no quotes or extra text:\n\n${contentPreview}`;
+
+          const generatedTitle = await FirebaseAIModule.generateText('gemini-2.0-flash-exp', prompt);
+          finalTitle = generatedTitle.trim().replace(/^["']|["']$/g, '');
+
+          // Ensure title doesn't exceed max length
+          if (finalTitle.length > 50) {
+            finalTitle = finalTitle.substring(0, 47) + '...';
+          }
+          console.log('Generated title:', finalTitle);
+        } else {
+          // Fallback: use first line
+          const firstLine = plainText.split('\n')[0] || 'Untitled Note';
+          finalTitle = firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
+        }
       } catch (error) {
         console.error('Error generating title:', error);
         // Fallback to simple extraction
