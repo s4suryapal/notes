@@ -44,7 +44,7 @@ import {
 } from '@/hooks/useNoteEditor';
 import { authenticateWithBiometrics } from '@/lib/biometric';
 import { getEditorTourSteps } from '@/components/tours/editorTourSteps';
-import { detectNumbers, calculateStats, shouldShowCalculation } from '@/lib/smartCalculation';
+import { detectNumbers, calculateStats, shouldShowCalculation, formatNumber } from '@/lib/smartCalculation';
 import type { CalculationStats } from '@/lib/smartCalculation';
 import { storage } from '@/lib/mmkvStorage';
 
@@ -398,6 +398,35 @@ export default function NoteEditorScreen() {
   const handleCalculationDismiss = useCallback(() => {
     setShowCalculationPanel(false);
   }, []);
+
+  const handleInsertTotal = useCallback(() => {
+    if (!calculationStats) return;
+
+    // Format the total line
+    const totalLine = `\n<p><strong>Total: ${formatNumber(calculationStats.sum)}</strong></p>`;
+    const newBody = body + totalLine;
+
+    // Update body
+    setBody(newBody);
+    richTextRef.current?.setContentHTML(newBody);
+
+    // Save immediately
+    immediateSave({
+      title,
+      body: newBody,
+      categoryId: selectedCategory,
+      color: selectedColor,
+      images: imageManager.images,
+      audioRecordings: audioRecorder.audioRecordings,
+      checklistItems: checklistManager.checklistItems,
+    });
+
+    // Scroll to end to show the added total
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+
+    // Show feedback
+    showInfo('Total added to note');
+  }, [calculationStats, body, title, selectedCategory, selectedColor, imageManager.images, audioRecorder.audioRecordings, checklistManager.checklistItems, immediateSave, showInfo]);
 
   // Update calculation when smart calc is enabled and body changes
   useEffect(() => {
@@ -764,6 +793,7 @@ export default function NoteEditorScreen() {
           visible={showCalculationPanel}
           onDismiss={handleCalculationDismiss}
           onCopy={handleCalculationCopy}
+          onInsertTotal={handleInsertTotal}
         />
 
         {/* Toolbar */}

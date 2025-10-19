@@ -27,13 +27,16 @@ export function detectNumbers(text: string): number[] {
   // Remove HTML tags if present (from rich text editor)
   const plainText = text.replace(/<[^>]*>/g, ' ');
 
-  // Regular expression to match standalone numbers:
+  // Regular expression to match standalone numbers while excluding dates:
   // - Lookbehind to ensure not part of a word (space, start, or punctuation before)
+  // - Negative lookahead to exclude numbers that are part of dates (e.g., 20-10-2025)
+  // - Negative lookbehind to exclude numbers preceded by date separators
   // - Optional negative sign
   // - Either comma-separated format (1,000) or plain digits
   // - Optional decimal part
+  // - Negative lookahead to ensure not followed by date separator
   // - Word boundary at end
-  const numberPattern = /(?<=^|[\s,;:()[\]{}])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?=\b)/g;
+  const numberPattern = /(?<=^|[\s,;:()[\]{}])(?![\d-\/\.]*\d[-\/]\d)(?<![-\/]\d{1,2}[-\/])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![-\/]\d)(?=\b)/g;
 
   const matches = plainText.match(numberPattern);
 

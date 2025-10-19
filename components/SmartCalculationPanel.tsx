@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Clipboard } from 'react-native';
-import { Copy, X, TrendingUp, Hash, BarChart3 } from 'lucide-react-native';
+import { Copy, X, TrendingUp, Hash, BarChart3, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -11,9 +11,10 @@ interface SmartCalculationPanelProps {
   visible: boolean;
   onDismiss: () => void;
   onCopy: () => void;
+  onInsertTotal?: () => void;
 }
 
-export function SmartCalculationPanel({ stats, visible, onDismiss, onCopy }: SmartCalculationPanelProps) {
+export function SmartCalculationPanel({ stats, visible, onDismiss, onCopy, onInsertTotal }: SmartCalculationPanelProps) {
   const { colors } = useTheme();
   const slideAnim = useRef(new Animated.Value(100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -67,6 +68,13 @@ export function SmartCalculationPanel({ stats, visible, onDismiss, onCopy }: Sma
   const handleDismiss = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onDismiss();
+  };
+
+  const handleInsertTotal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (onInsertTotal) {
+      onInsertTotal();
+    }
   };
 
   return (
@@ -126,11 +134,18 @@ export function SmartCalculationPanel({ stats, visible, onDismiss, onCopy }: Sma
         </View>
       </View>
 
-      {/* Copy Button */}
-      <TouchableOpacity style={[styles.copyButton, { backgroundColor: colors.primary }]} onPress={handleCopy} activeOpacity={0.8}>
-        <Copy size={16} color="#FFFFFF" />
-        <Text style={styles.copyButtonText}>Copy Results</Text>
-      </TouchableOpacity>
+      {/* Action Buttons */}
+      <View style={styles.buttonsContainer}>
+        <TouchableOpacity style={[styles.actionButton, styles.insertButton, { backgroundColor: colors.success }]} onPress={handleInsertTotal} activeOpacity={0.8}>
+          <Plus size={16} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Add Total</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.actionButton, styles.copyButton, { backgroundColor: colors.primary }]} onPress={handleCopy} activeOpacity={0.8}>
+          <Copy size={16} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Copy</Text>
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 }
@@ -199,17 +214,27 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.light.text,
   },
-  copyButton: {
+  buttonsContainer: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.light.primary,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.base,
     borderRadius: BorderRadius.md,
   },
-  copyButtonText: {
+  insertButton: {
+    backgroundColor: Colors.light.success,
+  },
+  copyButton: {
+    backgroundColor: Colors.light.primary,
+  },
+  buttonText: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: '#FFFFFF',
