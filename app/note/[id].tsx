@@ -758,6 +758,14 @@ export default function NoteEditorScreen() {
           </ScrollView>
         </BackgroundWrapper>
 
+        {/* Smart Calculation Panel - positioned above toolbar */}
+        <SmartCalculationPanel
+          stats={calculationStats}
+          visible={showCalculationPanel}
+          onDismiss={handleCalculationDismiss}
+          onCopy={handleCalculationCopy}
+        />
+
         {/* Toolbar */}
         <View ref={toolbarRef} style={styles.toolbarContainer} collapsable={false}>
           <RichToolbar
@@ -867,14 +875,6 @@ export default function NoteEditorScreen() {
         onNext={handleEditorTourNext}
         onSkip={handleEditorTourSkip}
         onComplete={handleEditorTourComplete}
-      />
-
-      {/* Smart Calculation Panel */}
-      <SmartCalculationPanel
-        stats={calculationStats}
-        visible={showCalculationPanel}
-        onDismiss={handleCalculationDismiss}
-        onCopy={handleCalculationCopy}
       />
     </SafeAreaView>
   );

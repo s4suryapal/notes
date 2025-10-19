@@ -137,10 +137,6 @@ export function SmartCalculationPanel({ stats, visible, onDismiss, onCopy }: Sma
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: Colors.light.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,
@@ -148,8 +144,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.base,
     ...Shadows.xl,
-    zIndex: 9999,
-    elevation: 9999,
   },
   header: {
     flexDirection: 'row',
