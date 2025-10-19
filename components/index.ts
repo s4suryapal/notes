@@ -28,3 +28,4 @@ export type { OCRResult } from './TextExtractor';
 export { default as Onboarding } from './Onboarding';
 export { default as FeatureTour } from './FeatureTour';
 export type { TourStep } from './FeatureTour';
+export { default as NativeAdCard } from './NativeAdCard';

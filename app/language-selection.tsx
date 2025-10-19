@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import { ArrowLeft, Check } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useLanguage } from '@/lib/LanguageContext';
 import BannerAdComponent from '@/components/BannerAdComponent';
+import { NativeAdCard } from '@/components';
+import remoteConfig from '@/services/remoteConfig';
+import admobService from '@/services/admob';
 
 type Language = 'en' | 'hi' | 'de' | 'es' | 'fr' | 'ru' | 'id' | 'ja' | 'zh' | 'ko' | 'vi' | 'pt' | 'ar' | 'tr' | 'pl' | 'it' | 'fil' | 'uk' | 'th' | 'af' | 'bn';
 
@@ -50,8 +53,22 @@ export default function LanguageSelectionScreen() {
   const { colors } = useTheme();
   const { currentLanguage, setLanguage, isFirstLaunch } = useLanguage();
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(currentLanguage);
+  const [adConfig, setAdConfig] = useState({
+    showAd: 1,
+    bannerId: '',
+    nativeId: '',
+    showFirstDoneInterstitial: false,
+    firstDoneInterstitialId: ''
+  });
 
-  console.log('[LanguageSelection] Screen rendering', { isFirstLaunch, currentLanguage, colors });
+  // Load Remote Config for language screen ads
+  useEffect(() => {
+    const config = remoteConfig.getLanguageScreenAdConfig();
+    setAdConfig(config);
+    console.log('[LanguageSelection] Ad Config:', config);
+  }, []);
+
+  console.log('[LanguageSelection] Screen rendering', { isFirstLaunch, currentLanguage, colors, adConfig });
 
   const handleLanguageSelect = (languageCode: Language) => {
     setSelectedLanguage(languageCode);
@@ -62,6 +79,17 @@ export default function LanguageSelectionScreen() {
 
     // Save the selected language
     await setLanguage(selectedLanguage);
+
+    // Show interstitial ad on first launch if enabled
+    if (isFirstLaunch && adConfig.showFirstDoneInterstitial && adConfig.firstDoneInterstitialId) {
+      console.log('📺 Attempting to show interstitial ad:', adConfig.firstDoneInterstitialId);
+      try {
+        const shown = await admobService.showInterstitial(adConfig.firstDoneInterstitialId, { timeoutMs: 2500 });
+        console.log('📺 Interstitial ad result:', shown);
+      } catch (error) {
+        console.log('📺 Interstitial ad error:', error);
+      }
+    }
 
     // Navigate based on launch type
     if (isFirstLaunch) {
@@ -156,15 +184,30 @@ export default function LanguageSelectionScreen() {
         </View>
       </ScrollView>
 
-      {/* Big Banner Ad at bottom */}
-      <View style={[styles.bannerAdContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        <BannerAdComponent
-          adType="inlineAdaptiveBanner"
-          height={250}
-          style={styles.bannerAdWrapper}
-          location="language-selection"
-        />
-      </View>
+      {/* Bottom ad area - 0:off, 1:banner, 2:native */}
+      {adConfig.showAd !== 0 && (
+        <View
+          style={[
+            adConfig.showAd === 2 ? styles.nativeAdContainer : styles.bannerAdContainer,
+            { backgroundColor: colors.surface, borderTopColor: colors.border },
+          ]}
+        >
+          {adConfig.showAd === 1 ? (
+            <BannerAdComponent
+              adType="inlineAdaptiveBanner"
+              height={250}
+              style={styles.bannerAdWrapper}
+              location="language-selection"
+              unitId={adConfig.bannerId || undefined}
+            />
+          ) : (
+            <NativeAdCard
+              location="language-selection"
+              unitId={adConfig.nativeId || undefined}
+            />
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -254,6 +297,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     minHeight: 250,
     justifyContent: 'center',
+    alignItems: 'stretch',
+  },
+  nativeAdContainer: {
+    borderTopWidth: 1,
+    minHeight: 280,
+    justifyContent: 'flex-start',
     alignItems: 'stretch',
   },
   bannerAdWrapper: {

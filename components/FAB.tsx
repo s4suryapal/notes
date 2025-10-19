@@ -2,6 +2,7 @@ import { TouchableOpacity, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Plus } from 'lucide-react-native';
 import { Colors, Layout, Shadows, Spacing } from '@/constants/theme';
+import { forwardRef } from 'react';
 
 interface FABProps {
   onPress: () => void;
@@ -9,28 +10,34 @@ interface FABProps {
   right?: number;  // optional right offset if needed
 }
 
-export function FAB({ onPress, bottom, right }: FABProps) {
+export const FAB = forwardRef<View, FABProps>(({ onPress, bottom, right }, ref) => {
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
   };
 
   return (
-    <TouchableOpacity
+    <View
+      ref={ref}
       style={[
         styles.container,
         bottom != null ? { bottom } : null,
         right != null ? { right } : null,
       ]}
-      onPress={handlePress}
-      activeOpacity={0.8}
+      collapsable={false}
     >
-      <View style={styles.iconContainer}>
-        <Plus size={28} color="#FFFFFF" strokeWidth={3} />
-      </View>
-    </TouchableOpacity>
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.8}
+        style={StyleSheet.absoluteFill}
+      >
+        <View style={styles.iconContainer}>
+          <Plus size={28} color="#FFFFFF" strokeWidth={3} />
+        </View>
+      </TouchableOpacity>
+    </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -96,7 +96,12 @@ export default function HomeScreen() {
   const [showHomeTour, setShowHomeTour] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
   const fabBottom = insets.bottom + 50 + Spacing.base;
-  const homeTourSteps = useMemo(() => getHomeTourSteps(fabBottom), [fabBottom]);
+  const fabRef = useRef<View>(null);
+  const [fabPosition, setFabPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const homeTourSteps = useMemo(() => {
+    if (!fabPosition) return [];
+    return getHomeTourSteps(fabPosition);
+  }, [fabPosition]);
 
   // Add "All" category at the beginning (no "+" tab anymore)
   const allCategories = useMemo(() => [
@@ -150,7 +155,7 @@ export default function HomeScreen() {
       const currentCat = allCategories[index];
       const catId = currentCat?.id && currentCat.id !== 'all' ? currentCat.id : null;
       const href = catId ? `/note/new?category=${encodeURIComponent(catId)}` : '/note/new';
-      router.push(href);
+      router.push(href as any); // Type issue with dynamic query params in Expo Router
     });
   };
 
@@ -413,14 +418,26 @@ export default function HomeScreen() {
     }
   };
 
-  // Show home tour after data loads
+  // Measure FAB position for tour
   useEffect(() => {
-    if (!loading && shouldShowHomeTour()) {
+    if (!loading && fabRef.current) {
+      const timer = setTimeout(() => {
+        fabRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          setFabPosition({ x, y, width, height });
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  // Show home tour after data loads and FAB is measured
+  useEffect(() => {
+    if (!loading && shouldShowHomeTour() && fabPosition) {
       // Delay slightly to let UI settle
       const timer = setTimeout(() => setShowHomeTour(true), 500);
       return () => clearTimeout(timer);
     }
-  }, [loading, shouldShowHomeTour]);
+  }, [loading, shouldShowHomeTour, fabPosition]);
 
   const handleTourNext = () => {
     setTourStepIndex((prev) => prev + 1);
@@ -605,7 +622,7 @@ export default function HomeScreen() {
                     ) : item.body ? (
                       <FormattedText
                         text={item.body.substring(0, 100) + (item.body.length > 100 ? '...' : '')}
-                        style={[styles.gridBody, { color: C.textSecondary }]}
+                        style={[styles.gridBody, { color: C.textSecondary }] as any}
                         numberOfLines={4}
                       />
                     ) : null}
@@ -852,7 +869,7 @@ export default function HomeScreen() {
       </View>
 
       {!selectionMode && (
-        <FAB onPress={handleCreateNote} bottom={insets.bottom + 50 + Spacing.base} />
+        <FAB ref={fabRef} onPress={handleCreateNote} bottom={insets.bottom + 50 + Spacing.base} />
       )}
 
       {/* Bulk Actions Bottom Bar */}

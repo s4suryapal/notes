@@ -99,7 +99,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         has_checklist: (input.checklist_items?.length || 0) > 0,
         has_images: (input.images?.length || 0) > 0,
         has_audio: (input.audio_recordings?.length || 0) > 0,
-        is_locked: input.is_locked || false,
+        is_locked: false, // New notes are never locked
         total_notes: activeNotes.length,
       });
 

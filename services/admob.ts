@@ -4,7 +4,9 @@ import mobileAds, {
   AdsConsentStatus,
   AppOpenAd,
   BannerAdSize,
-  MaxAdContentRating
+  MaxAdContentRating,
+  InterstitialAd,
+  AdEventType
 } from 'react-native-google-mobile-ads';
 
 // Helper function for consistent AdMob logging
@@ -27,6 +29,9 @@ export class AdMobService {
   private appOpenAdLoadTime = 0;
   private isShowingAppOpenAd = false;
   private isLoadingAppOpenAd = false;
+
+  // Interstitial Ad state
+  private isShowingInterstitial = false;
 
   constructor() {
     logAdMob('INIT', 'AdMobService instance created', {
@@ -351,6 +356,87 @@ export class AdMobService {
       // Return a generic message for other errors
       return 'Temporary issue';
     }
+  }
+
+  /**
+   * Show an interstitial ad. Loads on demand and shows once loaded.
+   * Resolves true when an ad is shown and closed, false on load error/timeout.
+   */
+  async showInterstitial(
+    adUnitId: string,
+    options?: { timeoutMs?: number }
+  ): Promise<boolean> {
+    const timeoutMs = Math.max(800, options?.timeoutMs ?? 2500);
+
+    if (this.isShowingInterstitial) {
+      logAdMob('INTERSTITIAL_SKIP', 'Interstitial already showing - skip duplicate request');
+      return false;
+    }
+
+    if (!adUnitId || !adUnitId.trim()) {
+      logAdMob('INTERSTITIAL_SKIP', 'No ad unit ID provided');
+      return false;
+    }
+
+    logAdMob('INTERSTITIAL_REQUEST', 'Requesting interstitial load', { adUnitId, timeoutMs });
+
+    return new Promise<boolean>((resolve) => {
+      let resolved = false;
+
+      const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
+        requestNonPersonalizedAdsOnly: false,
+        keywords: ['notes', 'productivity', 'organization'],
+      });
+
+      const cleanup = () => {
+        try { unsubscribeLoaded(); } catch {}
+        try { unsubscribeError(); } catch {}
+        try { unsubscribeOpened(); } catch {}
+        try { unsubscribeClosed(); } catch {}
+      };
+
+      const finish = (result: boolean, reason?: string, error?: any) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
+        this.isShowingInterstitial = false;
+        logAdMob('INTERSTITIAL_FINISH', `Completed with result=${result}${reason ? ` (${reason})` : ''}`, error ? { error } : undefined);
+        cleanup();
+        resolve(result);
+      };
+
+      const unsubscribeLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
+        logAdMob('INTERSTITIAL_EVENT', 'LOADED - showing now');
+        try {
+          this.isShowingInterstitial = true;
+          interstitial.show();
+        } catch (e) {
+          finish(false, 'show_exception', e);
+        }
+      });
+
+      const unsubscribeOpened = interstitial.addAdEventListener(AdEventType.OPENED, () => {
+        logAdMob('INTERSTITIAL_EVENT', 'OPENED');
+      });
+
+      const unsubscribeClosed = interstitial.addAdEventListener(AdEventType.CLOSED, () => {
+        logAdMob('INTERSTITIAL_EVENT', 'CLOSED');
+        finish(true);
+      });
+
+      const unsubscribeError = interstitial.addAdEventListener(AdEventType.ERROR, (error) => {
+        logAdMob('INTERSTITIAL_EVENT', 'ERROR', { error: String(error) });
+        finish(false, 'load_error', error);
+      });
+
+      const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
+
+      try {
+        interstitial.load();
+      } catch (e) {
+        finish(false, 'load_exception', e);
+      }
+    });
   }
 }
 

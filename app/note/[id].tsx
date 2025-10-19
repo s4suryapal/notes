@@ -81,7 +81,12 @@ export default function NoteEditorScreen() {
   // Feature Tour state
   const [showEditorTour, setShowEditorTour] = useState(false);
   const [editorTourStepIndex, setEditorTourStepIndex] = useState(0);
-  const editorTourSteps = useMemo(() => getEditorTourSteps(), []);
+  const toolbarRef = useRef<View>(null);
+  const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const editorTourSteps = useMemo(() => {
+    if (!toolbarPosition) return [];
+    return getEditorTourSteps(toolbarPosition);
+  }, [toolbarPosition]);
 
   // Refs
   const richTextRef = useRef<RichEditor>(null);
@@ -301,14 +306,26 @@ export default function NoteEditorScreen() {
     return () => cleanup();
   }, [cleanup]);
 
+  // Measure toolbar position for tour
+  useEffect(() => {
+    if (!loading && editorReady && toolbarRef.current) {
+      const timer = setTimeout(() => {
+        toolbarRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          setToolbarPosition({ x, y, width, height });
+        });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, editorReady]);
+
   // Show editor tour for new notes if needed
   useEffect(() => {
-    if (!loading && editorReady && isNewNote && shouldShowEditorTour()) {
+    if (!loading && editorReady && isNewNote && shouldShowEditorTour() && toolbarPosition) {
       // Delay to let toolbar render
       const timer = setTimeout(() => setShowEditorTour(true), 800);
       return () => clearTimeout(timer);
     }
-  }, [loading, editorReady, isNewNote, shouldShowEditorTour]);
+  }, [loading, editorReady, isNewNote, shouldShowEditorTour, toolbarPosition]);
 
   const handleEditorTourNext = () => {
     setEditorTourStepIndex((prev) => prev + 1);
@@ -673,7 +690,7 @@ export default function NoteEditorScreen() {
         </BackgroundWrapper>
 
         {/* Toolbar */}
-        <View style={styles.toolbarContainer}>
+        <View ref={toolbarRef} style={styles.toolbarContainer} collapsable={false}>
           <RichToolbar
             editor={richTextRef}
             actions={[

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, FlatList, Dimensi
 import { Check, Plus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { runOnJS } from 'react-native-reanimated';
-import ColorPicker2, { Panel1, HueSlider, returnedResults } from 'reanimated-color-picker';
+import ColorPicker2, { Panel1, HueSlider, type returnedResults } from 'reanimated-color-picker';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 

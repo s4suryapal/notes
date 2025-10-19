@@ -74,8 +74,8 @@ function AppNavigation() {
             return;
           }
 
-          let checkInterval: NodeJS.Timeout | null = null;
-          let timeoutTimer: NodeJS.Timeout | null = null;
+          let checkInterval: ReturnType<typeof setInterval> | null = null;
+          let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
           checkInterval = setInterval(() => {
             if (!isLoadingRef.current) {

@@ -30,6 +30,13 @@ class RemoteConfigService {
     // Default ad unit IDs (fallback)
     appopen_ad_unit_id_test: 'ca-app-pub-3940256099942544/9257395921',
     appopen_ad_unit_id_prod: '',
+
+    // Language Screen Ad controls
+    language_screen_show_ad: 1, // 0 = off, 1 = banner, 2 = native
+    language_screen_banner_id: '',
+    language_screen_native_id: '',
+    language_screen_show_first_done_interstitial: false,
+    language_screen_first_done_interstitial_id: '',
   };
 
   private constructor() {
@@ -299,6 +306,28 @@ class RemoteConfigService {
         enabled: this.getBoolean('premium_screen_show_appopen'),
         adUnitId: this.getString('premium_screen_appopen_id'),
       },
+    };
+  }
+
+  // ===== Language Screen Ads =====
+
+  /**
+   * Get language screen ad configuration
+   * @returns Configuration object for language screen ads
+   */
+  getLanguageScreenAdConfig(): {
+    showAd: number; // 0 = off, 1 = banner, 2 = native
+    bannerId: string;
+    nativeId: string;
+    showFirstDoneInterstitial: boolean;
+    firstDoneInterstitialId: string;
+  } {
+    return {
+      showAd: this.getNumber('language_screen_show_ad'),
+      bannerId: this.getString('language_screen_banner_id'),
+      nativeId: this.getString('language_screen_native_id'),
+      showFirstDoneInterstitial: this.getBoolean('language_screen_show_first_done_interstitial'),
+      firstDoneInterstitialId: this.getString('language_screen_first_done_interstitial_id'),
     };
   }
 }

@@ -21,7 +21,7 @@ export default function ManageCategoriesScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
-  const [categoryColor, setCategoryColor] = useState('#F44336');
+  const [categoryColor, setCategoryColor] = useState<string>('#F44336');
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const createInputRef = useRef<TextInput>(null);
   const renameInputRef = useRef<TextInput>(null);
@@ -41,6 +41,10 @@ export default function ManageCategoriesScreen() {
   const loadNoteCounts = async () => {
     const counts = await getCategoryNoteCounts();
     setNoteCounts(counts);
+  };
+
+  const handleColorChange = (color: string | null) => {
+    setCategoryColor(color || '#F44336'); // Default to red if null
   };
 
   const handleDragEnd = ({ data }: { data: Category[] }) => {
@@ -267,7 +271,7 @@ export default function ManageCategoriesScreen() {
               <Text style={styles.colorPickerLabel}>Color</Text>
               <ColorPicker
                 selectedColor={categoryColor}
-                onSelectColor={setCategoryColor}
+                onSelectColor={handleColorChange}
               />
             </View>
 
@@ -324,7 +328,7 @@ export default function ManageCategoriesScreen() {
               <Text style={styles.colorPickerLabel}>Color</Text>
               <ColorPicker
                 selectedColor={categoryColor}
-                onSelectColor={setCategoryColor}
+                onSelectColor={handleColorChange}
               />
             </View>
 

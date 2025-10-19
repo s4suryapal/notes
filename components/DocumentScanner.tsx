@@ -50,7 +50,7 @@ export default function DocumentScanner({ visible, onClose, onScanComplete }: Do
       const { scannedImages } = await DocumentScannerPlugin.scanDocument({
         maxNumDocuments: 5, // Allow up to 5 pages
         letUserAdjustCrop: true, // Let user adjust detected edges
-        responseType: 'imageFilePath', // Get file paths
+        responseType: 'imageFilePath' as any, // Get file paths - type issue in library
       });
 
       if (scannedImages && scannedImages.length > 0) {

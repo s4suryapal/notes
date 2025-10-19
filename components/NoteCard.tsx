@@ -115,7 +115,7 @@ export const NoteCard = React.memo(function NoteCard({
                 <HighlightedText
                   text={note.title}
                   searchQuery={searchQuery}
-                  style={[styles.title, { color: C.text }]}
+                  style={[styles.title, { color: C.text }] as any}
                   numberOfLines={2}
                 />
               ) : (
@@ -148,7 +148,7 @@ export const NoteCard = React.memo(function NoteCard({
                 <HighlightedText
                   text={plainTextBody.substring(0, 100) + (plainTextBody.length > 100 ? '...' : '')}
                   searchQuery={searchQuery}
-                  style={[styles.body, { color: C.textSecondary }]}
+                  style={[styles.body, { color: C.textSecondary }] as any}
                   numberOfLines={2}
                 />
               ) : (

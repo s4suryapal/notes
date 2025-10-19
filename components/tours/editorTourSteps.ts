@@ -1,31 +1,25 @@
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions } from 'react-native';
 import { TourStep } from '../FeatureTour';
-import { Spacing } from '@/constants/theme';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Toolbar is at the bottom of the screen
-// Icons are arranged horizontally in the RichToolbar
-// Each icon is approximately 40-50px wide with some spacing
-
-export const getEditorTourSteps = (): TourStep[] => {
-  // Toolbar height is approximately 50px (from note editor styles)
-  const toolbarHeight = 50;
-  const toolbarY = height - toolbarHeight - (Platform.OS === 'ios' ? 34 : 0); // Account for safe area
-
-  // Icon measurements (approximate positions in the toolbar)
-  const iconSize = 24;
-  const iconSpacing = 45; // Approximate spacing between icons
-  const toolbarPadding = 10;
-
-  // Calculate positions for each icon in the toolbar
-  // Based on the actions array in note/[id].tsx:
+export const getEditorTourSteps = (toolbarPosition: { x: number; y: number; width: number; height: number }): TourStep[] => {
+  // RichToolbar actions array from note/[id].tsx:
   // actions={[
   //   actions.setBold, actions.setItalic, actions.setUnderline,
   //   actions.insertBulletsList, actions.insertOrderedList,
   //   'checklist', 'scanner', 'ocr', 'camera', 'gallery', 'microphone', 'palette',
   //   actions.keyboard, actions.removeFormat, actions.undo, actions.redo
   // ]}
+  // Total: 16 actions
+
+  // Calculate icon spacing dynamically based on toolbar width
+  const totalActions = 16;
+  const iconSize = 24;
+  const hitAreaPadding = 16;
+  const toolbarPadding = 12;
+  const availableWidth = toolbarPosition.width - (toolbarPadding * 2);
+  const iconSpacing = availableWidth / totalActions;
 
   // We want to highlight: scanner (index 6), ocr (7), camera (8), gallery (9), microphone (10), checklist (5), palette (11)
   const checklistIndex = 5;
@@ -36,12 +30,17 @@ export const getEditorTourSteps = (): TourStep[] => {
   const microphoneIndex = 10;
   const paletteIndex = 11;
 
-  const getIconPosition = (index: number) => ({
-    x: toolbarPadding + (index * iconSpacing),
-    y: toolbarY + (toolbarHeight - iconSize) / 2,
-    width: iconSize + 16, // Add padding for hit area
-    height: iconSize + 16,
-  });
+  const getIconPosition = (index: number) => {
+    const centerX = toolbarPosition.x + toolbarPadding + (index * iconSpacing) + (iconSpacing / 2);
+    const centerY = toolbarPosition.y + (toolbarPosition.height / 2);
+
+    return {
+      x: centerX - (iconSize + hitAreaPadding) / 2,
+      y: centerY - (iconSize + hitAreaPadding) / 2,
+      width: iconSize + hitAreaPadding,
+      height: iconSize + hitAreaPadding,
+    };
+  };
 
   return [
     {

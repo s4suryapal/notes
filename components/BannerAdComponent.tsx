@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, interpolate } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/hooks/useTheme';
 
 // Android-only AdMob imports
 import { BannerAd, BannerAdSize, AdSize } from 'react-native-google-mobile-ads';
@@ -19,7 +20,17 @@ interface BannerAdComponentProps {
 }
 
 // Performant Shimmer loading component
-function ShimmerPlaceholder({ width = '100%', height = 50 }: { width?: string | number, height?: number }) {
+function ShimmerPlaceholder({
+  width = '100%',
+  height = 50,
+  measuredWidth = 0,
+  colors
+}: {
+  width?: string | number;
+  height?: number;
+  measuredWidth?: number;
+  colors: any;
+}) {
   const shimmerValue = useSharedValue(0);
 
   useEffect(() => {
@@ -38,7 +49,15 @@ function ShimmerPlaceholder({ width = '100%', height = 50 }: { width?: string | 
 
   const shimmerStyle = useAnimatedStyle(() => {
     // Create a wider shimmer effect that moves across the entire width
-    const containerWidth = typeof width === 'number' ? width : 350; // Fallback width
+    // Use measuredWidth if available, otherwise use width value, fallback to 350
+    let containerWidth = 350; // Fallback width
+
+    if (measuredWidth > 0) {
+      containerWidth = measuredWidth;
+    } else if (typeof width === 'number') {
+      containerWidth = width;
+    }
+
     const shimmerWidth = containerWidth * 0.8; // Shimmer width is 80% of container
 
     const translateX = interpolate(
@@ -53,8 +72,8 @@ function ShimmerPlaceholder({ width = '100%', height = 50 }: { width?: string | 
     };
   });
 
-  const baseColor = '#f0f0f0';
-  const highlightColor = '#ffffff60';
+  const baseColor = colors.surface || '#f0f0f0';
+  const highlightColor = colors.primary ? `${colors.primary}15` : '#ffffff60';
 
   return (
     <View style={[
@@ -92,7 +111,7 @@ function ShimmerPlaceholder({ width = '100%', height = 50 }: { width?: string | 
 
       {/* Loading text */}
       <View style={styles.shimmerTextContainer}>
-        <Text style={[styles.shimmerText, { color: '#666' }]}>
+        <Text style={[styles.shimmerText, { color: colors.textSecondary || '#666' }]}>
           Loading Ad...
         </Text>
       </View>
@@ -108,6 +127,7 @@ function BannerAdComponent({
   location = 'default',
   unitId
 }: BannerAdComponentProps) {
+  const { colors } = useTheme();
   const [adState, setAdState] = useState<'loading' | 'ready' | 'loaded' | 'error'>('loading');
   const [adError, setAdError] = useState<string | null>(null);
   const bannerRef = useRef<any>(null);
@@ -266,35 +286,18 @@ function BannerAdComponent({
         // Use anchored adaptive banner for standard adaptive banners
         return BannerAdSize.ANCHORED_ADAPTIVE_BANNER;
       case 'inlineAdaptiveBanner':
-        // Prefer explicit height-based inline adaptive to honor requested height
-        const adHeight = getAdHeight();
-        if (AdSize && typeof AdSize.getInlineAdaptiveBannerAdSize === 'function' && adHeight) {
-          try {
-            const deviceWidth = getDeviceWidth();
-            console.log('Using getInlineAdaptiveBannerAdSize with width:', deviceWidth, 'height:', adHeight);
-            return AdSize.getInlineAdaptiveBannerAdSize(deviceWidth, adHeight);
-          } catch (error) {
-            console.log('getInlineAdaptiveBannerAdSize failed:', error);
-          }
-        }
-        // Fallbacks if explicit height method unavailable
-        if (AdSize && typeof AdSize.getCurrentOrientationInlineAdaptiveBannerAdSize === 'function') {
-          try {
-            const deviceWidth = getDeviceWidth();
-            console.log('Using getCurrentOrientationInlineAdaptiveBannerAdSize with width:', deviceWidth);
-            return AdSize.getCurrentOrientationInlineAdaptiveBannerAdSize(deviceWidth);
-          } catch (error) {
-            console.log('getCurrentOrientationInlineAdaptiveBannerAdSize failed:', error);
-          }
-        }
-        // Final fallback to anchored adaptive
-        return BannerAdSize.ANCHORED_ADAPTIVE_BANNER;
+        // Use the string constant - native Android code will handle sizing automatically
+        // See: ReactNativeGoogleMobileAdsCommon.java:getAdSizeForAdaptiveBanner()
+        // The native code will call AdSize.getInlineAdaptiveBannerAdSize(width, maxHeight)
+        // where maxHeight comes from the maxHeight prop we set on the view
+        console.log('📏 [INLINE ADAPTIVE] Using native INLINE_ADAPTIVE_BANNER with maxHeight:', getAdHeight());
+        return 'INLINE_ADAPTIVE_BANNER';
       case 'rectangleBanner':
         return BannerAdSize.MEDIUM_RECTANGLE;
       default:
         return BannerAdSize.BANNER;
     }
-  }, [size, adType, getAdHeight, getDeviceWidth]);
+  }, [size, adType, getAdHeight]);
 
   // Adaptive flag only for inline adaptive layout needs
   const isInlineAdaptive = adType === 'inlineAdaptiveBanner';
@@ -459,6 +462,7 @@ function BannerAdComponent({
           ref={bannerRef}
           unitId={adUnitId}
           size={adSize}
+          maxHeight={isInlineAdaptive ? getAdHeight() : undefined}
           requestOptions={{
             requestNonPersonalizedAdsOnly: false,
             keywords: ['notes', 'productivity', 'organization'],
@@ -499,6 +503,8 @@ function BannerAdComponent({
             <ShimmerPlaceholder
               width="100%"
               height={getAdHeight()}
+              measuredWidth={measuredWidth}
+              colors={colors}
             />
           </Animated.View>
         )}
