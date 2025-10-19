@@ -18,7 +18,7 @@ import {
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText, Calculator, Layout } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText, Calculator, Layout, Bell } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
@@ -80,6 +80,7 @@ export default function NoteEditorScreen() {
   const [showDocumentScanner, setShowDocumentScanner] = useState(false);
   const [showTextExtractor, setShowTextExtractor] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [loading, setLoading] = useState(!isNewNote);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [actionNoteId, setActionNoteId] = useState<string | null>(null);
@@ -660,6 +661,14 @@ export default function NoteEditorScreen() {
     }, 300);
   };
 
+  const handleOpenReminderPicker = () => {
+    Keyboard.dismiss();
+    // Wait for keyboard to dismiss before showing modal
+    setTimeout(() => {
+      setShowReminderPicker(true);
+    }, 300);
+  };
+
   const handleToggleChecklistWithSave = useCallback(() => {
     checklistManager.handleToggleChecklist();
     if (checklistManager.showChecklist) {
@@ -838,6 +847,7 @@ export default function NoteEditorScreen() {
               'template',
               'smartcalc',
               'checklist',
+              'reminder',
               'scanner',
               'ocr',
               'camera',
@@ -853,6 +863,7 @@ export default function NoteEditorScreen() {
               template: () => <Layout size={20} color={C.text} />,
               smartcalc: () => <Calculator size={20} color={smartCalcEnabled ? C.primary : C.text} />,
               checklist: () => <CheckSquare size={20} color={checklistManager.showChecklist ? C.primary : C.text} />,
+              reminder: () => <Bell size={20} color={C.text} />,
               scanner: () => <ScanText size={20} color={C.text} />,
               ocr: () => <FileText size={20} color={C.text} />,
               camera: () => <Camera size={20} color={C.text} />,
@@ -863,6 +874,7 @@ export default function NoteEditorScreen() {
             template={handleOpenTemplatePicker}
             smartcalc={toggleSmartCalc}
             checklist={handleToggleChecklistWithSave}
+            reminder={handleOpenReminderPicker}
             scanner={() => setShowDocumentScanner(true)}
             ocr={() => setShowTextExtractor(true)}
             camera={imageManager.handleCameraPress}
@@ -945,6 +957,57 @@ export default function NoteEditorScreen() {
         onClose={() => setShowTemplatePicker(false)}
         onSelectTemplate={handleTemplateSelect}
       />
+
+      {/* Reminder Picker - Placeholder */}
+      <Modal
+        visible={showReminderPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReminderPicker(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: C.overlay }]}
+          onPress={() => setShowReminderPicker(false)}
+        >
+          <Pressable
+            style={[styles.backgroundPickerModal, { backgroundColor: C.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <Bell size={24} color={C.primary} />
+                <Text style={[styles.modalTitle, { color: C.text }]}>Set Reminder</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowReminderPicker(false)}>
+                <Check size={24} color={C.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: Spacing.xl, alignItems: 'center' }}>
+              <Bell size={64} color={C.textTertiary} style={{ marginBottom: Spacing.lg }} />
+              <Text style={[styles.modalTitle, { color: C.text, textAlign: 'center', marginBottom: Spacing.sm }]}>
+                Reminder Feature Coming Soon
+              </Text>
+              <Text style={{ color: C.textSecondary, textAlign: 'center', marginBottom: Spacing.xl }}>
+                Set reminders for your notes to get notified at the right time.
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: C.primary,
+                  paddingHorizontal: Spacing.xl,
+                  paddingVertical: Spacing.md,
+                  borderRadius: BorderRadius.lg,
+                }}
+                onPress={() => setShowReminderPicker(false)}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: Typography.fontWeight.semibold }}>
+                  Got it
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

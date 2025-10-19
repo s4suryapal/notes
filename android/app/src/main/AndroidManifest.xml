@@ -13,8 +13,8 @@
   <!-- Android 13+ notification runtime permission -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
   <!-- Reminder system permissions -->
-  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-  <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+  <!-- Note: setExactAndAllowWhileIdle() works without SCHEDULE_EXACT_ALARM permission -->
+  <!-- WAKE_LOCK is needed for reliable alarm delivery when device is in deep sleep -->
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <!-- Boot completed permission needed to reschedule reminders after device reboot -->
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>

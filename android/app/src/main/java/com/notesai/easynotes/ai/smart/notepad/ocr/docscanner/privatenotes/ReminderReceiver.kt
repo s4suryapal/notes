@@ -41,7 +41,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 )
             }
 
-            val builder = NotificationCompat.Builder(context, "reminders_channel")
+            val builder = NotificationCompat.Builder(context, NotificationChannelManager.ChannelId.REMINDERS)
                 .setSmallIcon(R.drawable.ic_stat_ic_notification)
                 .setContentTitle("⏰ Reminder")
                 .setContentText(reminderTitle)
@@ -52,6 +52,17 @@ class ReminderReceiver : BroadcastReceiver() {
                 .setContentIntent(pendingIntent)
                 .setVibrate(longArrayOf(0, 250, 250, 250))
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                // Add action buttons for quick interaction
+                .addAction(
+                    0,
+                    "Mark Done",
+                    createMarkDonePendingIntent(context, reminderId)
+                )
+                .addAction(
+                    0,
+                    "Snooze 10 min",
+                    createSnoozePendingIntent(context, reminderId, reminderTitle, 10)
+                )
 
             val notificationManager = NotificationManagerCompat.from(context)
             try {
@@ -64,6 +75,45 @@ class ReminderReceiver : BroadcastReceiver() {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error showing notification", e)
         }
+    }
+
+    /**
+     * Create PendingIntent for "Mark Done" action
+     */
+    private fun createMarkDonePendingIntent(context: Context, reminderId: String): PendingIntent {
+        val intent = Intent(context, ReminderActionReceiver::class.java).apply {
+            action = ReminderActionReceiver.ACTION_MARK_DONE
+            putExtra("reminder_id", reminderId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            reminderId.hashCode() + 1,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    /**
+     * Create PendingIntent for "Snooze" action
+     */
+    private fun createSnoozePendingIntent(
+        context: Context,
+        reminderId: String,
+        reminderTitle: String,
+        minutes: Int
+    ): PendingIntent {
+        val intent = Intent(context, ReminderActionReceiver::class.java).apply {
+            action = ReminderActionReceiver.ACTION_SNOOZE
+            putExtra("reminder_id", reminderId)
+            putExtra("reminder_title", reminderTitle)
+            putExtra("snooze_minutes", minutes)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            reminderId.hashCode() + 2,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun deleteReminderFromStorage(context: Context, reminderId: String) {
