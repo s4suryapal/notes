@@ -31,6 +31,10 @@ local.properties
 *.keystore
 !debug.keystore
 
+# Release keystore and properties (NEVER commit these!)
+keystore.properties
+*-release.keystore
+
 # Node
 node_modules/
 npm-debug.log

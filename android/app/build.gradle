@@ -119,6 +119,46 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Load keystore configuration from keystore.properties
+            def keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (!keystorePropertiesFile.exists()) {
+                throw new GradleException("""
+                    ❌ ERROR: keystore.properties file not found!
+
+                    Release builds require a valid keystore for signing.
+
+                    To fix this:
+                    1. Run: npm run verify:keystore
+                    2. If keystore is missing, generate one (see android/KEYSTORE_README.md)
+                    3. Ensure both files exist:
+                       - android/keystore.properties
+                       - android/app/notesai-release.keystore
+
+                    For development, use: npm run build:dev-apk
+                """.stripIndent())
+            }
+
+            def keystoreProperties = new Properties()
+            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+            def keystoreFile = file(keystoreProperties['storeFile'])
+            if (!keystoreFile.exists()) {
+                throw new GradleException("""
+                    ❌ ERROR: Keystore file not found: ${keystoreFile.path}
+
+                    The keystore.properties file exists but points to a missing keystore file.
+                    Expected location: android/app/notesai-release.keystore
+
+                    Run: npm run verify:keystore
+                """.stripIndent())
+            }
+
+            storeFile keystoreFile
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+        }
     }
     buildTypes {
         debug {
@@ -130,7 +170,7 @@ android {
         }
         release {
             // 📦 For production builds with smaller app size, enable these:
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled true           // Enable R8 code shrinking
             shrinkResources true         // Enable resource shrinking
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", "proguard-memory-optimize.pro"
