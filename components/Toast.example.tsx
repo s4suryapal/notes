@@ -5,6 +5,7 @@
  * and custom colors for various actions in the NotesAI app.
  */
 
+/*
 import { Toast } from './Toast';
 
 // Example 1: Deleted Note Toast
@@ -119,3 +120,5 @@ import { Toast } from './Toast';
  * You can override any toast's color by passing the customColor prop
  * with a hex color code (e.g., "#FF6B9D")
  */
+
+export {};

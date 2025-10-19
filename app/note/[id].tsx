@@ -17,13 +17,14 @@ import {
 import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, Palette, Check, Mic, CheckSquare, ScanText, FileText, Calculator } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotes } from '@/lib/NotesContext';
 import { useToast } from '@/lib/ToastContext';
 import { useFeatureTour } from '@/lib/FeatureTourContext';
 import { BackgroundPicker, getBackgroundById, NoteActionsSheet, ChecklistItem, DocumentScanner, TextExtractor, FeatureTour } from '@/components';
+import { SmartCalculationPanel } from '@/components/SmartCalculationPanel';
 import type { DocumentScanResult, OCRResult } from '@/components';
 import { Note } from '@/types';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -43,6 +44,9 @@ import {
 } from '@/hooks/useNoteEditor';
 import { authenticateWithBiometrics } from '@/lib/biometric';
 import { getEditorTourSteps } from '@/components/tours/editorTourSteps';
+import { detectNumbers, calculateStats, shouldShowCalculation } from '@/lib/smartCalculation';
+import type { CalculationStats } from '@/lib/smartCalculation';
+import { storage } from '@/lib/mmkvStorage';
 
 export default function NoteEditorScreen() {
   const { id, mode, category } = useLocalSearchParams();
@@ -87,6 +91,13 @@ export default function NoteEditorScreen() {
     if (!toolbarPosition) return [];
     return getEditorTourSteps(toolbarPosition);
   }, [toolbarPosition]);
+
+  // Smart Calculation state
+  const [smartCalcEnabled, setSmartCalcEnabled] = useState(() => {
+    return storage.getBoolean('smartCalcEnabled') ?? false;
+  });
+  const [calculationStats, setCalculationStats] = useState<CalculationStats | null>(null);
+  const [showCalculationPanel, setShowCalculationPanel] = useState(false);
 
   // Refs
   const richTextRef = useRef<RichEditor>(null);
@@ -343,6 +354,58 @@ export default function NoteEditorScreen() {
     setEditorTourCompleted();
   };
 
+  // Smart Calculation Functions
+  const updateCalculation = useCallback((text: string) => {
+    if (!text) {
+      setCalculationStats(null);
+      setShowCalculationPanel(false);
+      return;
+    }
+
+    const numbers = detectNumbers(text);
+    const stats = calculateStats(numbers);
+
+    if (stats && shouldShowCalculation(text)) {
+      setCalculationStats(stats);
+      setShowCalculationPanel(true);
+    } else {
+      setCalculationStats(null);
+      setShowCalculationPanel(false);
+    }
+  }, []);
+
+  const toggleSmartCalc = useCallback(() => {
+    const newValue = !smartCalcEnabled;
+    setSmartCalcEnabled(newValue);
+    storage.set('smartCalcEnabled', newValue);
+
+    if (newValue) {
+      // Enabled - calculate immediately
+      updateCalculation(body);
+      showInfo('Smart calculation enabled');
+    } else {
+      // Disabled - hide panel
+      setCalculationStats(null);
+      setShowCalculationPanel(false);
+      showInfo('Smart calculation disabled');
+    }
+  }, [smartCalcEnabled, body, updateCalculation, showInfo]);
+
+  const handleCalculationCopy = useCallback(() => {
+    showInfo('Calculation copied to clipboard');
+  }, [showInfo]);
+
+  const handleCalculationDismiss = useCallback(() => {
+    setShowCalculationPanel(false);
+  }, []);
+
+  // Update calculation when smart calc is enabled and body changes
+  useEffect(() => {
+    if (smartCalcEnabled && body) {
+      updateCalculation(body);
+    }
+  }, [smartCalcEnabled, body, updateCalculation]);
+
   // Handlers
   const handleTitleChange = (text: string) => {
     setTitle(text);
@@ -359,6 +422,12 @@ export default function NoteEditorScreen() {
 
   const handleBodyChange = (html: string) => {
     setBody(html);
+
+    // Update smart calculation if enabled
+    if (smartCalcEnabled) {
+      updateCalculation(html);
+    }
+
     debouncedSave({
       title,
       body: html,
@@ -699,6 +768,7 @@ export default function NoteEditorScreen() {
               actions.setUnderline,
               actions.insertBulletsList,
               actions.insertOrderedList,
+              'smartcalc',
               'checklist',
               'scanner',
               'ocr',
@@ -712,6 +782,7 @@ export default function NoteEditorScreen() {
               actions.redo,
             ]}
             iconMap={{
+              smartcalc: () => <Calculator size={20} color={smartCalcEnabled ? C.primary : C.text} />,
               checklist: () => <CheckSquare size={20} color={checklistManager.showChecklist ? C.primary : C.text} />,
               scanner: () => <ScanText size={20} color={C.text} />,
               ocr: () => <FileText size={20} color={C.text} />,
@@ -720,6 +791,7 @@ export default function NoteEditorScreen() {
               microphone: () => <Mic size={20} color={C.text} />,
               palette: () => <Palette size={20} color={paletteIconColor} />,
             }}
+            smartcalc={toggleSmartCalc}
             checklist={handleToggleChecklistWithSave}
             scanner={() => setShowDocumentScanner(true)}
             ocr={() => setShowTextExtractor(true)}
@@ -795,6 +867,14 @@ export default function NoteEditorScreen() {
         onNext={handleEditorTourNext}
         onSkip={handleEditorTourSkip}
         onComplete={handleEditorTourComplete}
+      />
+
+      {/* Smart Calculation Panel */}
+      <SmartCalculationPanel
+        stats={calculationStats}
+        visible={showCalculationPanel}
+        onDismiss={handleCalculationDismiss}
+        onCopy={handleCalculationCopy}
       />
     </SafeAreaView>
   );

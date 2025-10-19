@@ -107,6 +107,13 @@ android {
             useSupportLibrary = true
             generatedDensities = []
         }
+
+        // Dex options for better memory management
+        dexOptions {
+            javaMaxHeapSize "4g"
+            preDexLibraries = true
+            maxProcessCount = 8
+        }
     }
 
     buildFeatures {
@@ -175,6 +182,9 @@ android {
             shrinkResources true         // Enable resource shrinking
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", "proguard-memory-optimize.pro"
             zipAlignEnabled true         // Optimize APK alignment
+
+            // R8 memory optimizations to prevent OOM errors
+            android.defaultConfig.javaCompileOptions.annotationProcessorOptions.arguments = ['dexOptions.javaMaxHeapSize': '4g']
 
             // Additional size optimizations
             debuggable false             // Remove debug info
