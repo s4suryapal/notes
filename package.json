@@ -7,7 +7,12 @@
     "dev": "EXPO_NO_TELEMETRY=1 expo start --dev-client --lan",
     "dev:tunnel": "EXPO_NO_TELEMETRY=1 expo start --dev-client --tunnel",
     "build:web": "expo export --platform web",
-    "build:apk": "cd android && ./gradlew assembleRelease && cd ..",
+    "clean": "rm -rf android/app/.cxx && rm -rf android/.gradle && rm -rf android/app/build && rm -rf android/build && echo '✅ Android build cache cleaned (keystore files preserved)'",
+    "clean:gradle": "cd android && ./gradlew clean && cd .. && echo '✅ Gradle clean complete (keystore files preserved)'",
+    "clean:all": "npm run clean && npm run clean:gradle && echo '✅ Deep clean complete (keystore files preserved)'",
+    "verify:keystore": "test -f android/app/notesai-release.keystore && test -f android/keystore.properties && echo '✅ Keystore files exist' || echo '⚠️ Keystore files not found (debug signing will be used)'",
+    "build:apk": "npm run verify:keystore && echo '🔐 Building production APK (requires keystore)...' && cd android && ./gradlew assembleRelease && cd ..",
+    "build:aab": "npm run verify:keystore && echo '🔐 Building production AAB for Play Store (requires keystore)...' && cd android && ./gradlew bundleRelease && cd ..",
     "build:dev-apk": "cd android && ./gradlew assembleDebug && cd ..",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
@@ -15,7 +20,10 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "android": "expo run:android",
     "android:dev": "expo run:android --variant debug",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "analyze:bundle": "npx react-native-bundle-visualizer --dev=false --platform=android",
+    "analyze:apk": "cd android && ./gradlew assembleRelease --scan && cd .. && echo '\n📊 APK size analysis available in android/app/build/outputs/apk/release/'",
+    "analyze:deps": "npx depcheck && npx npm-check -u"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.24.0",
