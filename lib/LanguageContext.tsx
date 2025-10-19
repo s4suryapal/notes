@@ -31,6 +31,18 @@ const translations: Record<Language, Record<string, string>> = {
     privacy_policy_text: 'By continuing, you agree to our',
     allow: 'Allow',
     notes_ai: 'NotesAI',
+    // Overlay permission screen
+    overlay_permission_title: 'Enable Overlay Permission',
+    overlay_permission_subtitle: 'Allow NotesAI to display quick notes over other apps',
+    overlay_benefits_title: 'Why Enable This?',
+    overlay_benefit_1: 'Quick access to your notes from any app',
+    overlay_benefit_2: 'Create notes without leaving your current app',
+    overlay_benefit_3: 'Floating reminders and notifications',
+    overlay_benefit_4: 'Enhanced productivity features',
+    overlay_permission_instructions: 'Tap "Enable Permission" and toggle the switch for our app',
+    overlay_permission_notice: 'This permission is optional but recommended for the best experience',
+    overlay_enable_button: 'Enable Permission',
+    skip: 'Skip for now',
   },
   hi: {
     phone_permission: 'फ़ोन अनुमति',
