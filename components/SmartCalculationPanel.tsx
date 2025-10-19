@@ -148,7 +148,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.base,
     ...Shadows.xl,
-    zIndex: 100,
+    zIndex: 9999,
+    elevation: 9999,
   },
   header: {
     flexDirection: 'row',

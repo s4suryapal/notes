@@ -56,8 +56,9 @@ export class AdMobService {
       }
     });
 
+    // OPTIMIZATION: Skip ALL initialization if already done (instant return)
     if (this.isInitialized) {
-      logAdMob('INITIALIZE_SKIP', 'AdMob already initialized - skipping');
+      logAdMob('INITIALIZE_SKIP', 'AdMob already initialized - instant return ⚡');
       return;
     }
 
@@ -91,6 +92,8 @@ export class AdMobService {
       const adapterStatuses = await mobileAds().initialize();
 
       const initTime = Date.now() - startTime;
+
+      // Mark as initialized IMMEDIATELY to prevent double init
       this.isInitialized = true;
 
       logAdMob('INITIALIZE_SUCCESS', 'AdMob initialized successfully', {
@@ -115,6 +118,7 @@ export class AdMobService {
         stack: (error as Error).stack,
         criticalImpact: 'No ads will be shown'
       });
+      // Don't set isInitialized to true on error - allow retry
     }
   }
 

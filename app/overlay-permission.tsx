@@ -17,8 +17,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/hooks/useTheme';
 import { useLanguage } from '@/lib/LanguageContext';
 import BannerAdComponent from '@/components/BannerAdComponent';
+import { storage } from '@/lib/mmkvStorage';
 
 const { OverlaySettingsModule } = NativeModules;
+
+// OPTIMIZATION: Cache keys (must match app/index.tsx)
+const OVERLAY_PERMISSION_CACHE_KEY = 'overlay_permission_granted';
+const OVERLAY_CACHE_TIMESTAMP_KEY = 'overlay_last_checked';
 
 export default function OverlayPermissionScreen() {
   const { colors } = useTheme();
@@ -43,6 +48,10 @@ export default function OverlayPermissionScreen() {
           }
         } catch {}
         if (__DEV__) console.log('📱 [OVERLAY_PERMISSION] Overlay permission after settings:', hasOverlay);
+
+        // OPTIMIZATION: Update cache with new permission status
+        storage.set(OVERLAY_PERMISSION_CACHE_KEY, hasOverlay);
+        storage.set(OVERLAY_CACHE_TIMESTAMP_KEY, Date.now());
 
         // Mark first launch complete and navigate to home
         await markFirstLaunchComplete();

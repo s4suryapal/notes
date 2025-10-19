@@ -27,11 +27,13 @@ export function detectNumbers(text: string): number[] {
   // Remove HTML tags if present (from rich text editor)
   const plainText = text.replace(/<[^>]*>/g, ' ');
 
-  // Regular expression to match numbers:
+  // Regular expression to match standalone numbers:
+  // - Lookbehind to ensure not part of a word (space, start, or punctuation before)
   // - Optional negative sign
-  // - Digits with optional commas
-  // - Optional decimal point and decimals
-  const numberPattern = /-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?/g;
+  // - Either comma-separated format (1,000) or plain digits
+  // - Optional decimal part
+  // - Word boundary at end
+  const numberPattern = /(?<=^|[\s,;:()[\]{}])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?=\b)/g;
 
   const matches = plainText.match(numberPattern);
 

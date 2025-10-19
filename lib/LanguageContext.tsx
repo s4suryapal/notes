@@ -18,6 +18,7 @@ const LANGUAGE_KEY = 'app_language';
 const FIRST_LAUNCH_KEY = 'first_launch_complete';
 
 // Translation function (placeholder - implement proper translations later)
+// OPTIMIZATION: Only keep languages with actual translations, use English as fallback
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Permissions screen
@@ -68,25 +69,7 @@ const translations: Record<Language, Record<string, string>> = {
     allow: 'Erlauben',
     notes_ai: 'NotesAI',
   },
-  // Add other languages with default English text for now
-  es: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  fr: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  ru: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  id: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  ja: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  zh: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  ko: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  vi: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  pt: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  ar: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  tr: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  pl: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  it: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  fil: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  uk: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  th: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  af: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
-  bn: { phone_permission: 'Phone Permission', phone_permission_desc: 'Required to detect incoming calls', notification_permission: 'Notification Permission', notification_permission_desc: 'Get notified about your notes', overlay_permission: 'Overlay Permission', overlay_permission_desc: 'Display notes on top of other apps', privacy_policy: 'Privacy Policy', privacy_policy_text: 'By continuing, you agree to our', allow: 'Allow', notes_ai: 'NotesAI' },
+  // Removed 18 duplicate placeholder languages - will use English fallback
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -95,13 +78,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('[LanguageContext] 🔄 Loading language preferences...');
+    if (__DEV__) console.log('[LanguageContext] 🔄 Loading language preferences...');
     // Load language and first launch status - wrapped in try-catch for safety
     try {
       const savedLanguage = storage.getString(LANGUAGE_KEY);
       const firstLaunchComplete = storage.getBoolean(FIRST_LAUNCH_KEY);
 
-      console.log('[LanguageContext] Storage values:', { savedLanguage, firstLaunchComplete });
+      if (__DEV__) console.log('[LanguageContext] Storage values:', { savedLanguage, firstLaunchComplete });
 
       if (savedLanguage) {
         setCurrentLanguage(savedLanguage as Language);
@@ -115,7 +98,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       setIsFirstLaunch(true);
     } finally {
       // ALWAYS set loading to false, even on error
-      console.log('[LanguageContext] ✅ Setting isLoading to FALSE');
+      if (__DEV__) console.log('[LanguageContext] ✅ Setting isLoading to FALSE');
       setIsLoading(false);
     }
   }, []);
@@ -131,7 +114,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback((key: string): string => {
-    return translations[currentLanguage]?.[key] || translations['en'][key] || key;
+    // OPTIMIZATION: Fallback to English if language translation not available
+    return translations[currentLanguage]?.[key] || translations['en']?.[key] || key;
   }, [currentLanguage]);
 
   const value: LanguageContextType = useMemo(
