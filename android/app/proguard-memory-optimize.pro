@@ -18,6 +18,10 @@
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
 
+# AdMob Advertising ID (simplified with wildcard)
+-keep class com.google.android.gms.ads.identifier.AdvertisingIdClient { *; }
+-keep class com.google.android.gms.ads.identifier.AdvertisingIdClient$Info { *; }
+
 # Strip logs for APK size while keeping warnings/errors for diagnostics
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
