@@ -13,6 +13,8 @@ import android.graphics.Color
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,16 +56,14 @@ class CallEndActivity : FragmentActivity() {
         // Configure keyboard handling
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
 
-        // Set status bar color to app's primary color
+        // Set status bar color to app's primary color (modern approach)
         try {
             window.statusBarColor = Color.parseColor("#4A90E2")
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                // Clear light status bar flag for light icons on colored background
-                var flags = window.decorView.systemUiVisibility
-                flags = flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-                window.decorView.systemUiVisibility = flags
-            }
+            // Use WindowInsetsController for modern status bar styling
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController?.isAppearanceLightStatusBars = false // Dark icons on light background
         } catch (e: Exception) {
         }
 
@@ -155,25 +155,24 @@ class CallEndActivity : FragmentActivity() {
     }
 
     private fun setupOverlayActivity() {
-        // Configure window to show over other apps / lock screen
+        // Configure window to show over other apps / lock screen (modern approach)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            // Use modern methods for Android 8.1+
             try {
                 setShowWhenLocked(true)
                 setTurnScreenOn(true)
             } catch (_: Exception) {}
-        }
-        window.apply {
-            setFlags(
+        } else {
+            // Fallback for older versions
+            @Suppress("DEPRECATION")
+            window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         }
+
+        // Keep screen on (not deprecated)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun openMainApp() {
@@ -220,7 +219,9 @@ class CallEndActivity : FragmentActivity() {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        @Suppress("DEPRECATION")
         super.onBackPressed()
     }
 }

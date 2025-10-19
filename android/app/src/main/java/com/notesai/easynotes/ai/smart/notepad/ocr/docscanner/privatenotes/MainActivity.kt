@@ -40,7 +40,8 @@ class MainActivity : ReactActivity() {
             }
           }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-          // Android 4.4+ (API 19+) - Use system UI flags
+          // Android 4.4+ (API 19+) - Use system UI flags (suppressed deprecation)
+          @Suppress("DEPRECATION")
           val flags = (
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
             or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -48,12 +49,15 @@ class MainActivity : ReactActivity() {
             or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
           )
 
+          @Suppress("DEPRECATION")
           window.decorView.systemUiVisibility = flags
 
           // Multiple re-applications for modal persistence
           window.decorView.post {
+            @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = flags
             window.decorView.postDelayed({
+              @Suppress("DEPRECATION")
               window.decorView.systemUiVisibility = flags
             }, 50)
           }
@@ -78,16 +82,19 @@ class MainActivity : ReactActivity() {
             window.decorView.requestApplyInsets()
           }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-          // Android 4.4+ (API 19+) - Use system UI flags
+          // Android 4.4+ (API 19+) - Use system UI flags (suppressed deprecation)
+          @Suppress("DEPRECATION")
           val flags = (
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
           )
 
+          @Suppress("DEPRECATION")
           window.decorView.systemUiVisibility = flags
 
           // Force apply on next frame
           window.decorView.post {
+            @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = flags
           }
         }
@@ -145,12 +152,14 @@ class MainActivity : ReactActivity() {
             ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
               ?.emit(event, payload)
           } else {
+            @Suppress("DEPRECATION")
             reactInstanceManager?.addReactInstanceEventListener(object : ReactInstanceManager.ReactInstanceEventListener {
               override fun onReactContextInitialized(context: ReactContext) {
                 try {
                   context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                     ?.emit(event, payload)
                 } catch (_: Exception) {}
+                @Suppress("DEPRECATION")
                 reactInstanceManager?.removeReactInstanceEventListener(this)
               }
             })
