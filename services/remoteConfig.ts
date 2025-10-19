@@ -1,4 +1,4 @@
-import remoteConfig from '@react-native-firebase/remote-config';
+import { getRemoteConfig, fetchAndActivate, getValue, setDefaults } from '@react-native-firebase/remote-config';
 
 /**
  * RemoteConfigService - Manages Firebase Remote Config
@@ -57,16 +57,17 @@ class RemoteConfigService {
     try {
       console.log('[REMOTE_CONFIG] Initializing...');
 
+      // Get Remote Config instance using modular API
+      const config = getRemoteConfig();
+
       // Set default values
-      await remoteConfig().setDefaults(this.defaults);
+      await setDefaults(config, this.defaults);
 
       // Set minimum fetch interval
       // Development: 0 = fetch on every call (for testing)
       // Production: 43200000 = 12 hours (recommended)
       const fetchInterval = minimumFetchIntervalMillis ?? (__DEV__ ? 0 : 43200000);
-      await remoteConfig().setConfigSettings({
-        minimumFetchIntervalMillis: fetchInterval,
-      });
+      config.settings.minimumFetchIntervalMillis = fetchInterval;
 
       console.log(`[REMOTE_CONFIG] Fetch interval set to: ${fetchInterval}ms`);
 
@@ -94,9 +95,11 @@ class RemoteConfigService {
     try {
       console.log('[REMOTE_CONFIG] Fetching latest config...');
 
+      const config = getRemoteConfig();
+
       // Add timeout wrapper to prevent hanging
       const fetchWithTimeout = Promise.race([
-        remoteConfig().fetchAndActivate(),
+        fetchAndActivate(config),
         new Promise<boolean>((_, reject) =>
           setTimeout(() => reject(new Error('Remote Config fetch timeout')), timeoutMs)
         ),
@@ -139,28 +142,32 @@ class RemoteConfigService {
    * Get string value
    */
   getString(key: string): string {
-    return remoteConfig().getValue(key).asString();
+    const config = getRemoteConfig();
+    return getValue(config, key).asString();
   }
 
   /**
    * Get boolean value
    */
   getBoolean(key: string): boolean {
-    return remoteConfig().getValue(key).asBoolean();
+    const config = getRemoteConfig();
+    return getValue(config, key).asBoolean();
   }
 
   /**
    * Get number value
    */
   getNumber(key: string): number {
-    return remoteConfig().getValue(key).asNumber();
+    const config = getRemoteConfig();
+    return getValue(config, key).asNumber();
   }
 
   /**
    * Get all values as object
    */
   getAll(): Record<string, any> {
-    const all = remoteConfig().getAll();
+    const config = getRemoteConfig();
+    const all = config.getAll();
     const result: Record<string, any> = {};
 
     Object.keys(all).forEach((key) => {

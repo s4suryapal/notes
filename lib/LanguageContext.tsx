@@ -83,16 +83,25 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load language and first launch status
-    const savedLanguage = storage.getString(LANGUAGE_KEY);
-    const firstLaunchComplete = storage.getBoolean(FIRST_LAUNCH_KEY);
+    // Load language and first launch status - wrapped in try-catch for safety
+    try {
+      const savedLanguage = storage.getString(LANGUAGE_KEY);
+      const firstLaunchComplete = storage.getBoolean(FIRST_LAUNCH_KEY);
 
-    if (savedLanguage) {
-      setCurrentLanguage(savedLanguage as Language);
+      if (savedLanguage) {
+        setCurrentLanguage(savedLanguage as Language);
+      }
+
+      setIsFirstLaunch(!firstLaunchComplete);
+    } catch (error) {
+      console.error('[LanguageContext] Error loading from storage:', error);
+      // Use defaults: en language, first launch = true
+      setCurrentLanguage('en');
+      setIsFirstLaunch(true);
+    } finally {
+      // ALWAYS set loading to false, even on error
+      setIsLoading(false);
     }
-
-    setIsFirstLaunch(!firstLaunchComplete);
-    setIsLoading(false);
   }, []);
 
   const setLanguage = useCallback(async (language: Language) => {
