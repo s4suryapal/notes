@@ -31,6 +31,12 @@ function AppNavigation() {
   const [isInitialized, setIsInitialized] = useState(false);
   const hasHiddenRef = useRef(false);
   const appOpenAd = useAppOpenAdControl();
+  const isLoadingRef = useRef(isLoading);
+
+  // Keep ref in sync with isLoading state
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   // ⚡ SPLASH & INITIALIZATION FLOW
   // This controls when the native splash screen is dismissed
@@ -61,9 +67,9 @@ function AppNavigation() {
         console.log('[ADMOB] ✅ AdMob SDK initialized');
 
         // Step 2: Wait for language context to load (determines isFirstLaunch)
-        // Use promise-based approach instead of polling for better performance
+        // Use ref to avoid closure issues with stale state
         await new Promise<void>((resolve) => {
-          if (!isLoading) {
+          if (!isLoadingRef.current) {
             resolve();
             return;
           }
@@ -72,9 +78,10 @@ function AppNavigation() {
           let timeoutTimer: NodeJS.Timeout | null = null;
 
           checkInterval = setInterval(() => {
-            if (!isLoading) {
+            if (!isLoadingRef.current) {
               if (checkInterval) clearInterval(checkInterval);
               if (timeoutTimer) clearTimeout(timeoutTimer);
+              console.log('[CONTEXT] ✅ Language context loaded', { isFirstLaunch, isLoading: isLoadingRef.current });
               resolve();
             }
           }, 16); // Check every frame (~60fps) for responsive UI
@@ -82,14 +89,16 @@ function AppNavigation() {
           // Safety timeout after 1 second
           timeoutTimer = setTimeout(() => {
             if (checkInterval) clearInterval(checkInterval);
-            console.warn('[CONTEXT] ⚠️  Language context load timeout');
+            console.warn('[CONTEXT] ⚠️  Language context load timeout - proceeding anyway');
+            console.log('[CONTEXT] State at timeout:', { isFirstLaunch, isLoading: isLoadingRef.current });
             resolve();
           }, 1000);
         });
-        console.log('[CONTEXT] ✅ Language context loaded', { isFirstLaunch, isLoading });
 
-        // Step 3: Hide native splash and proceed to app immediately
-        // Note: Remote Config + AppOpen ads deferred to background (not needed immediately)
+        // Step 3: Wait for navigation to be ready and first screen to render
+        // This ensures the UI is actually visible before hiding splash
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         if (!cancelled) {
           const totalTime = Date.now() - startTime;
           console.log(`[SPLASH] ✅ Initialization complete (${totalTime}ms) - hiding splash`);
@@ -227,10 +236,9 @@ export default function RootLayout() {
   const hasHiddenRef = useRef(false);
   const onLayoutRootView = useCallback(async () => {
     try {
-      if (!hasHiddenRef.current) {
-        await SplashScreen.hideAsync();
-        hasHiddenRef.current = true;
-      }
+      // Don't hide splash here - it's handled by AppNavigation
+      // This prevents hiding splash before navigation is ready
+      console.log('[ROOT_LAYOUT] onLayout called - splash control delegated to AppNavigation');
     } catch {}
   }, []);
 

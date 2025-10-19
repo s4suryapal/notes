@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { MoreVertical, Star, CheckCircle2, Circle, Lock, Image as ImageIcon, Mic, CheckSquare } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BackgroundPattern } from '@/components';
+import { BackgroundPattern } from './BackgroundPattern';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { HighlightedText } from './HighlightedText';

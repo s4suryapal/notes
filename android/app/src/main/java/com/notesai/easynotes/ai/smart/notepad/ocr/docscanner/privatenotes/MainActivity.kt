@@ -6,11 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
-import android.animation.ObjectAnimator
-import android.os.Handler
-import android.os.Looper
-import androidx.core.animation.doOnEnd
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -103,49 +98,25 @@ class MainActivity : ReactActivity() {
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    // Install Android 12+ Splash Screen API FIRST (before super.onCreate)
-    // This handles the native splash screen with smooth animation
-    val splashScreen = installSplashScreen()
-
-    // Keep splash screen on-screen while app is loading
-    var keepSplashOnScreen = true
-    splashScreen.setKeepOnScreenCondition { keepSplashOnScreen }
-
-    // Add custom exit animation
-    splashScreen.setOnExitAnimationListener { splashScreenView ->
-      // Smooth slide up animation when dismissing splash
-      val slideUp = ObjectAnimator.ofFloat(
-        splashScreenView.view,
-        View.TRANSLATION_Y,
-        0f,
-        -splashScreenView.view.height.toFloat()
-      )
-      slideUp.duration = 250L // Balanced duration for smooth UX
-      slideUp.start()
-
-      // Remove the splash screen view after animation
-      slideUp.doOnEnd {
-        splashScreenView.remove()
-      }
-    }
-
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
     // setTheme(R.style.AppTheme);
+
     // @generated begin expo-splashscreen - expo prebuild (DO NOT MODIFY) sync-f3ff59a738c56c9a6119210cb55f0b613eb8b6af
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
 
     super.onCreate(null)
 
-    // ⚡ SPLASH CONTROL: Keep native splash visible until React Native signals it's ready
+    // ⚡ SPLASH CONTROL: Managed entirely by Expo's SplashScreenManager
     // The splash will be hidden from React Native side (_layout.tsx) after:
     // - AdMob SDK initialization (critical for banner ads)
     // - Language context loading
-    // - Firebase services deferred to background (non-blocking)
+    // - Navigation ready
     //
-    // Typical splash time: ~1-1.5s (AdMob + context)
+    // This ensures cross-platform consistency and proper integration with React Native.
+    // Typical splash time: ~500-800ms (AdMob + context)
     // Safety timeout: 5s maximum (prevents infinite splash)
     //
     // Note: AppOpen ads handled by AppOpenAdManager - only show on background return

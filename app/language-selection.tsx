@@ -51,6 +51,8 @@ export default function LanguageSelectionScreen() {
   const { currentLanguage, setLanguage, isFirstLaunch } = useLanguage();
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(currentLanguage);
 
+  console.log('[LanguageSelection] Screen rendering', { isFirstLaunch, currentLanguage, colors });
+
   const handleLanguageSelect = (languageCode: Language) => {
     setSelectedLanguage(languageCode);
   };
