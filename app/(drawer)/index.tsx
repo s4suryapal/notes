@@ -1121,7 +1121,6 @@ const styles = StyleSheet.create({
   },
   bannerAdContainer: {
     width: '100%',
-    paddingHorizontal: Spacing.sm,
     paddingBottom: Spacing.xs,
     backgroundColor: Colors.light.background,
   },
